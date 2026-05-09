@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RetroConsole OS – Projektplan & Aufgabenstellung</title>
+<style>
+  :root {
+    --bg:       #0b0d12;
+    --bg2:      #111420;
+    --bg3:      #181c2a;
+    --bg4:      #1e2235;
+    --border:   #252c42;
+    --border2:  #2e3650;
+    --text:     #dde3f0;
+    --muted:    #5a6480;
+    --muted2:   #8a94b0;
+    --accent:   #6c63ff;
+    --teal:     #1fc99e;
+    --blue:     #4a9eff;
+    --amber:    #f5a623;
+    --coral:    #ff6b7a;
+    --purple:   #a78bfa;
+    --green:    #3ecf80;
+    --tag-bg:   rgba(108,99,255,0.12);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    line-height: 1.65;
+  }
+
+  /* ─── LAYOUT ─────────────────────────────── */
+  .page { max-width: 900px; margin: 0 auto; padding: 3rem 2rem 5rem; }
+
+  /* ─── HEADER ─────────────────────────────── */
+  .doc-header {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 2rem;
+    margin-bottom: 3rem;
+  }
+  .doc-header .eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--teal);
+    margin-bottom: 0.6rem;
+  }
+  .doc-header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.2;
+    margin-bottom: 0.6rem;
+  }
+  .doc-header .subtitle {
+    color: var(--muted2);
+    font-size: 1rem;
+    margin-bottom: 1.2rem;
+  }
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .meta-item { display: flex; align-items: center; gap: 6px; }
+  .meta-item::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--teal);
+    flex-shrink: 0;
+  }
+
+  /* ─── SECTION HEADERS ────────────────────── */
+  .section { margin-bottom: 3rem; }
+  .section-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-num {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--bg4);
+    border: 1px solid var(--border2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+  .section-head h2 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #fff;
+  }
+
+  /* ─── SUMMARY BLOCK ──────────────────────── */
+  .summary-box {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--teal);
+    border-radius: 0 10px 10px 0;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+    font-size: 0.93rem;
+    color: var(--muted2);
+    line-height: 1.8;
+  }
+  .summary-box strong { color: var(--text); }
+
+  /* ─── SPEC GRID ──────────────────────────── */
+  .spec-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 10px;
+    margin-bottom: 1rem;
+  }
+  .spec-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.1rem;
+  }
+  .spec-card .label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .spec-card .value {
+    font-size: 0.92rem;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 3px;
+  }
+  .spec-card .note {
+    font-size: 0.77rem;
+    color: var(--muted);
+    font-family: 'Courier New', monospace;
+  }
+  .accent-teal  { border-top: 2px solid var(--teal); }
+  .accent-blue  { border-top: 2px solid var(--blue); }
+  .accent-amber { border-top: 2px solid var(--amber); }
+  .accent-purple{ border-top: 2px solid var(--purple); }
+  .accent-coral { border-top: 2px solid var(--coral); }
+  .accent-green { border-top: 2px solid var(--green); }
+
+  /* ─── ARCH LAYERS ────────────────────────── */
+  .arch-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  .arch-table th {
+    text-align: left;
+    padding: 8px 14px;
+    background: var(--bg4);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+  .arch-table td {
+    padding: 9px 14px;
+    border: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .arch-table tr:hover td { background: var(--bg3); }
+  .layer-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .l-hw   { background: rgba(255,107,122,0.12); color: var(--coral); }
+  .l-if   { background: rgba(74,158,255,0.12);  color: var(--blue);  }
+  .l-os   { background: rgba(31,201,158,0.12);  color: var(--teal);  }
+  .l-app  { background: rgba(167,139,250,0.12); color: var(--purple); }
+  .mono   { font-family: 'Courier New', monospace; font-size: 0.82rem; color: var(--muted2); }
+
+  /* ─── CRITICAL NOTES ─────────────────────── */
+  .warn-box {
+    background: rgba(245,166,35,0.07);
+    border: 1px solid rgba(245,166,35,0.25);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+    font-size: 0.87rem;
+  }
+  .warn-box .warn-title {
+    color: var(--amber);
+    font-weight: 600;
+    font-size: 0.82rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .warn-box ul { padding-left: 1.2rem; color: var(--muted2); line-height: 2; }
+  .warn-box ul li strong { color: var(--text); }
+
+  /* ─── PHASE BLOCKS ───────────────────────── */
+  .phase {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 1.25rem;
+  }
+  .phase-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .phase-letter {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .ph-a { background: rgba(31,201,158,0.15); color: var(--teal);   }
+  .ph-b { background: rgba(74,158,255,0.15);  color: var(--blue);   }
+  .ph-c { background: rgba(167,139,250,0.15); color: var(--purple); }
+  .ph-d { background: rgba(31,201,158,0.15);  color: var(--teal);   }
+  .ph-e { background: rgba(74,158,255,0.15);  color: var(--blue);   }
+  .ph-f { background: rgba(245,166,35,0.15);  color: var(--amber);  }
+  .ph-g { background: rgba(62,207,128,0.15);  color: var(--green);  }
+
+  .phase-header-text h3 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 2px;
+  }
+  .phase-header-text .meta {
+    font-size: 0.77rem;
+    color: var(--muted);
+  }
+  .phase-header .person-tags {
+    margin-left: auto;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .ptag {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+  }
+  .p1 { background: rgba(245,166,35,0.12); color: var(--amber);  }
+  .p2 { background: rgba(255,107,122,0.12);color: var(--coral);  }
+  .p3 { background: rgba(31,201,158,0.12); color: var(--teal);   }
+  .p4 { background: rgba(167,139,250,0.12);color: var(--purple); }
+  .p5 { background: rgba(74,158,255,0.12); color: var(--blue);   }
+
+  .phase-body { padding: 0; }
+
+  /* ─── TASK ITEMS ─────────────────────────── */
+  .task {
+    display: grid;
+    grid-template-columns: 28px 1fr auto;
+    gap: 12px;
+    padding: 10px 1.25rem;
+    border-bottom: 1px solid var(--border);
+    align-items: start;
+  }
+  .task:last-child { border-bottom: none; }
+  .task:hover { background: var(--bg3); }
+  .task-check {
+    width: 18px; height: 18px;
+    border: 1.5px solid var(--border2);
+    border-radius: 4px;
+    margin-top: 1px;
+    flex-shrink: 0;
+  }
+  .task-content {}
+  .task-title {
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+  .task-detail {
+    font-size: 0.78rem;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .task-detail code {
+    font-family: 'Courier New', monospace;
+    color: var(--teal);
+    background: rgba(31,201,158,0.08);
+    padding: 0 4px;
+    border-radius: 3px;
+    font-size: 0.76rem;
+  }
+  .task-detail .path {
+    font-family: 'Courier New', monospace;
+    color: var(--muted2);
+    font-size: 0.76rem;
+  }
+  .task-prio {
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    align-self: start;
+    margin-top: 2px;
+  }
+  .prio-critical { background: rgba(255,107,122,0.15); color: var(--coral); }
+  .prio-high     { background: rgba(245,166,35,0.12);  color: var(--amber); }
+  .prio-medium   { background: rgba(74,158,255,0.10);  color: var(--blue);  }
+  .prio-low      { background: rgba(90,100,128,0.15);  color: var(--muted2);}
+
+  /* ─── WIRING TABLE ───────────────────────── */
+  .wiring-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; margin-bottom: 1rem; }
+  .wiring-table th {
+    text-align: left; padding: 7px 12px;
+    background: var(--bg4); border: 1px solid var(--border);
+    color: var(--muted); font-size: 10px; letter-spacing: 0.08em;
+    text-transform: uppercase; font-weight: 600;
+  }
+  .wiring-table td {
+    padding: 8px 12px; border: 1px solid var(--border);
+  }
+  .wt-sensor { color: var(--teal); font-family: 'Courier New', monospace; }
+  .wt-gpio   { color: var(--coral); font-family: 'Courier New', monospace; }
+  .wt-note   { color: var(--muted); font-size: 0.78rem; }
+
+  /* ─── ACCEPTANCE CRITERIA ────────────────── */
+  .criteria {
+    background: rgba(31,201,158,0.05);
+    border: 1px solid rgba(31,201,158,0.2);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin: 0 1.25rem 1rem;
+    font-size: 0.8rem;
+  }
+  .criteria .crit-title {
+    color: var(--teal);
+    font-weight: 600;
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .criteria ul { padding-left: 1.1rem; color: var(--muted2); line-height: 1.9; }
+  .criteria ul li strong { color: var(--text); }
+
+  /* ─── DIVIDER ────────────────────────────── */
+  hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+
+  /* ─── FOOTER ─────────────────────────────── */
+  .doc-footer {
+    border-top: 1px solid var(--border);
+    padding-top: 1.5rem;
+    margin-top: 3rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+  .oss-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 11px;
+    color: var(--muted2);
+  }
+  .oss-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- ════════════════════════════════════════════ HEADER -->
+<header class="doc-header">
+  <div class="eyebrow">Hackathon-Projektplan · Open Source</div>
+  <h1>RetroConsole OS</h1>
+  <div class="subtitle">Modulare, futuristische Gaming-Konsole mit Fingerabdruck-Login auf Raspberry Pi 5</div>
+  <div class="meta-row">
+    <span class="meta-item">Raspberry Pi 5 · 4 GB RAM</span>
+    <span class="meta-item">RetroPie OS · SD-Karte</span>
+    <span class="meta-item">5 Personen Team</span>
+    <span class="meta-item">Grow R503 · WS2812B · Waveshare 5"</span>
+    <span class="meta-item">Lizenz: MIT Open Source</span>
+  </div>
+</header>
+
+<!-- ════════════════════════════════════════════ 1. PROJEKTZIEL -->
+<div class="section">
+  <div class="section-head">
+    <div class="section-num">1</div>
+    <h2>Projektziel & Vision</h2>
+  </div>
+
+  <div class="summary-box">
+    Wir bauen eine <strong>modulare Open-Source Gaming-Konsole</strong> auf Basis des Raspberry Pi 5.
+    Das Gerät vereint ein <strong>futuristisches Design</strong> mit einem klassischen Retro-Gaming-Erlebnis.
+    Herzstück ist ein <strong>Fingerabdruck-Login-System</strong>: Jeder Nutzer legt den Finger auf den Sensor,
+    die Konsole erkennt ihn, lädt sein persönliches Profil — inklusive Spielständen, Einstellungen und
+    individueller RGB-Farbe — und startet EmulationStation direkt in seiner Umgebung.
+    Der gesamte Quellcode wird auf GitHub veröffentlicht, sodass andere die Konsole nachbauen können.
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════ 2. HARDWARE -->
+<div class="section">
+  <div class="section-head">
+    <div class="section-num">2</div>
+    <h2>Hardware-Spezifikation</h2>
+  </div>
+
+  <div class="spec-grid">
+    <div class="spec-card accent-coral">
+      <div class="label">Hauptrechner</div>
+      <div class="value">Raspberry Pi 5</div>
+      <div class="note">4 GB RAM · ARM Cortex-A76 · 2,4 GHz</div>
+    </div>
+    <div class="spec-card accent-blue">
+      <div class="label">Display</div>
+      <div class="value">Waveshare 5" DSI LCD</div>
+      <div class="note">Anschluss: DSI-Port · MIPI · kein HDMI nötig</div>
+    </div>
+    <div class="spec-card accent-teal">
+      <div class="label">Fingerabdruck-Sensor</div>
+      <div class="value">Grow R503</div>
+      <div class="note">UART · 3,3V · TX→GPIO15 · RX→GPIO14</div>
+    </div>
+    <div class="spec-card accent-purple">
+      <div class="label">RGB-Beleuchtung</div>
+      <div class="value">WS2812B LED-Streifen</div>
+      <div class="note">SPI-Modus · GPIO 10 (MOSI) · kein Audio-Konflikt</div>
+    </div>
+    <div class="spec-card accent-amber">
+      <div class="label">Stromversorgung</div>
+      <div class="value">Powerbank</div>
+      <div class="note">USB-C · min. 25W für Pi 5 empfohlen</div>
+    </div>
+    <div class="spec-card accent-green">
+      <div class="label">Weitere Komponenten</div>
+      <div class="value">Buttons · Audio · Webcam · Case</div>
+      <div class="note">GPIO für Buttons · USB/CSI für Webcam · I2S/AUX Audio</div>
+    </div>
+  </div>
+
+  <br>
+  <div style="font-size:0.82rem; color:var(--muted); margin-bottom:0.5rem; font-weight:600; letter-spacing:0.06em; text-transform:uppercase;">R503 Verdrahtung (Referenz)</div>
+  <table class="wiring-table">
+    <thead>
+      <tr><th>R503-Pin</th><th>Pi 5 GPIO</th><th>Physischer Pin</th><th>Hinweis</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="wt-sensor">VCC (rot)</td><td class="wt-gpio">3,3V</td><td class="wt-gpio">Pin 1</td><td class="wt-note">Nicht 5V! R503 ist 3,3V-Logik</td></tr>
+      <tr><td class="wt-sensor">GND (schwarz)</td><td class="wt-gpio">GND</td><td class="wt-gpio">Pin 6</td><td class="wt-note">Masse</td></tr>
+      <tr><td class="wt-sensor">TX (gelb)</td><td class="wt-gpio">GPIO 15</td><td class="wt-gpio">Pin 22</td><td class="wt-note">Sensor → Pi (RXD0)</td></tr>
+      <tr><td class="wt-sensor">RX (grün)</td><td class="wt-gpio">GPIO 14</td><td class="wt-gpio">Pin 8</td><td class="wt-note">Pi → Sensor (TXD0)</td></tr>
+      <tr><td class="wt-sensor">WS2812B Data</td><td class="wt-gpio">GPIO 10</td><td class="wt-gpio">Pin 19</td><td class="wt-note">SPI MOSI · kein DMA-Konflikt mit Audio</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ════════════════════════════════════════════ 3. ARCHITEKTUR -->
+<div class="section">
+  <div class="section-head">
+    <div class="section-num">3</div>
+    <h2>System-Architektur</h2>
+  </div>
+
+  <table class="arch-table">
+    <thead>
+      <tr><th>Schicht</th><th>Komponenten</th><th>Technologie / Details</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="layer-badge l-app">Application</span></td>
+        <td>Auth-Modul · Retro-Emulatoren · System-Shell</td>
+        <td class="mono">Fingerprint-Login · EmulationStation · SNES/GBA/PS1</td>
+      </tr>
+      <tr>
+        <td><span class="layer-badge l-os">OS / System</span></td>
+        <td>Retro OS · User Manager · Driver Layer</td>
+        <td class="mono">RetroPie (Pi 5) · ES --home pro User · Kernel-Module</td>
+      </tr>
+      <tr>
+        <td><span class="layer-badge l-if">Interface</span></td>
+        <td>GPIO/SPI · USB/CSI · PWM/I2S</td>
+        <td class="mono">Buttons & FP via GPIO · Webcam via USB · RGB via SPI</td>
+      </tr>
+      <tr>
+        <td><span class="layer-badge l-hw">Hardware</span></td>
+        <td>Raspberry Pi 5 · Input/Sensoren · Display & Power</td>
+        <td class="mono">R503 · WS2812B · Waveshare 5" DSI · Powerbank</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <br>
+  <div class="warn-box">
+    <div class="warn-title">⚠ Kritische technische Abhängigkeiten</div>
+    <ul>
+      <li><strong>Pi 5 Config-Pfad:</strong> <code>/boot/firmware/config.txt</code> — nicht <code>/boot/config.txt</code> wie bei älteren Pi-Modellen</li>
+      <li><strong>UART für R503:</strong> Bluetooth blockiert standardmäßig ttyAMA0 → <code>dtoverlay=disable-bt</code> muss gesetzt werden</li>
+      <li><strong>RGB + Audio-Konflikt:</strong> WS2812B im PWM-Modus kollidiert mit Audio-DMA → zwingend SPI-Modus über GPIO 10 verwenden</li>
+      <li><strong>R503 Spannung:</strong> Nur 3,3V — niemals direkt an 5V anschließen</li>
+      <li><strong>EmulationStation --home:</strong> Jeder User bekommt sein eigenes Verzeichnis unter <code>/home/pi/users/&lt;id&gt;/</code></li>
+    </ul>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════ 4. TEAM -->
+<div class="section">
+  <div class="section-head">
+    <div class="section-num">4</div>
+    <h2>Team-Rollen</h2>
+  </div>
+
+  <div class="spec-grid">
+    <div class="spec-card">
+      <div class="label" style="color:var(--amber)">Person 1 · Case & Montage</div>
+      <div class="value">Gehäuse, Verbauplanung, Kabelführung</div>
+      <div class="note">Braucht früh finale Maße von Person 2</div>
+    </div>
+    <div class="spec-card">
+      <div class="label" style="color:var(--coral)">Person 2 · Hardware</div>
+      <div class="value">GPIO-Verkabelung, Sensor-Tests, Power</div>
+      <div class="note">Kritischer Pfad: SD flashen als erste Aufgabe</div>
+    </div>
+    <div class="spec-card">
+      <div class="label" style="color:var(--teal)">Person 3 · OS & System</div>
+      <div class="value">RetroPie, Treiber, Display, Emulatoren</div>
+      <div class="note">config.txt ist Voraussetzung für alle anderen</div>
+    </div>
+    <div class="spec-card">
+      <div class="label" style="color:var(--purple)">Person 4 · Auth & Profile</div>
+      <div class="value">FP-Login, user_map.json, ES-Profile</div>
+      <div class="note">Startet sobald UART-Treiber läuft</div>
+    </div>
+    <div class="spec-card">
+      <div class="label" style="color:var(--blue)">Person 5 · UI & Experience</div>
+      <div class="value">Theme, Splash, RGB-Effekte, Demo</div>
+      <div class="note">Integriert RGB-Login-Effekt mit Person 4</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════ 5. AUFGABEN -->
+<div class="section">
+  <div class="section-head">
+    <div class="section-num">5</div>
+    <h2>Aufgabenstellung nach erfolgreicher Hardware-Verkabelung</h2>
+  </div>
+
+  <p style="color:var(--muted2); font-size:0.88rem; margin-bottom:1.5rem; line-height:1.7;">
+    Die folgenden Phasen beginnen, sobald alle Komponenten verdrahtet und am Pi angeschlossen sind.
+    Jede Phase hat klare Verantwortlichkeiten und Abnahmekriterien. Phasen A–C laufen parallel —
+    erst Phase D und später benötigen Ergebnisse aus mehreren Phasen gleichzeitig.
+  </p>
+
+  <!-- ─── PHASE A ─── -->
+  <div class="phase">
+    <div class="phase-header">
+      <div class="phase-letter ph-a">A</div>
+      <div class="phase-header-text">
+        <h3>System-Grundkonfiguration</h3>
+        <div class="meta">Voraussetzung für alle weiteren Phasen · zuerst abschließen</div>
+      </div>
+      <div class="person-tags">
+        <span class="ptag p2">P2 Hardware</span>
+        <span class="ptag p3">P3 OS</span>
+      </div>
+    </div>
+    <div class="phase-body">
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">RetroPie Pi 5 Image auf SD-Karte flashen</div>
+          <div class="task-detail">Offizielles RetroPie-Image für Pi 5 herunterladen und mit Raspberry Pi Imager auf SD-Karte schreiben. SSH vorab aktivieren (leere Datei <code>ssh</code> im Boot-Verzeichnis).</div>
+        </div>
+        <span class="task-prio prio-critical">Kritisch</span>
+      </div>
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">Waveshare 5" DSI-Display konfigurieren</div>
+          <div class="task-detail">In <code>/boot/firmware/config.txt</code> den Waveshare-spezifischen Overlay eintragen. Korrekte Zeile: <code>dtoverlay=vc4-kms-v3d</code> sowie das Waveshare-Overlay laut Hersteller-Dokumentation. Danach reboot und Display-Ausgabe verifizieren.</div>
+        </div>
+        <span class="task-prio prio-critical">Kritisch</span>
+      </div>
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">UART für Fingerabdrucksensor freischalten</div>
+          <div class="task-detail">In <code>/boot/firmware/config.txt</code> folgende Zeilen eintragen: <code>enable_uart=1</code> und <code>dtoverlay=disable-bt</code>. Ohne disable-bt blockiert Bluetooth den ttyAMA0-Port. Danach: <code>sudo systemctl disable hciuart</code> und reboot.</div>
+        </div>
+        <span class="task-prio prio-critical">Kritisch</span>
+      </div>
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">SPI für RGB-LEDs aktivieren</div>
+          <div class="task-detail">Via <code>sudo raspi-config → Interface Options → SPI → Enable</code>. Verifizieren: <code>ls /dev/spidev*</code> muss <code>/dev/spidev0.0</code> ausgeben. Nur SPI-Modus vermeidet den Audio/PWM-DMA-Konflikt auf dem Pi 5.</div>
+        </div>
+        <span class="task-prio prio-high">Hoch</span>
+      </div>
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">SSH, WiFi und System-Update einrichten</div>
+          <div class="task-detail">WiFi-Credentials in <code>/boot/firmware/wpa_supplicant.conf</code> hinterlegen. Dann: <code>sudo apt update && sudo apt upgrade -y</code>. IP-Adresse notieren, damit alle Team-Mitglieder per SSH zugreifen können.</div>
+        </div>
+        <span class="task-prio prio-high">Hoch</span>
+      </div>
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">Python-Libraries installieren</div>
+          <div class="task-detail"><code>sudo pip install pyfingerprint rpi_ws281x --break-system-packages</code>. Hinweis: rpi_ws281x muss mit <code>sudo</code> ausgeführt werden (SPI-Zugriff erfordert Root). RPi.GPIO ist bei RetroPie meist vorinstalliert.</div>
+        </div>
+        <span class="task-prio prio-high">Hoch</span>
+      </div>
+    </div>
+    <div class="criteria">
+      <div class="crit-title">Abnahmekriterien Phase A</div>
+      <ul>
+        <li>Display zeigt RetroPie-Bootscreen korrekt auf dem Waveshare 5" DSI</li>
+        <li><code>ls /dev/ttyAMA0</code> zeigt den UART-Port ohne Fehler</li>
+        <li><code>ls /dev/spidev0.0</code> zeigt den SPI-Port</li>
+        <li>SSH-Login von einem anderen Gerät im gleichen Netz funktioniert</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ─── PHASE B ─── -->
+  <div class="phase">
+    <div class="phase-header">
+      <div class="phase-letter ph-b">B</div>
+      <div class="phase-header-text">
+        <h3>Hardware-Komponenten testen</h3>
+        <div class="meta">Parallel zu Phase A · alle Verbindungen verifizieren</div>
+      </div>
+      <div class="person-tags">
+        <span class="ptag p2">P2 Hardware</span>
+      </div>
+    </div>
+    <div class="phase-body">
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">Buttons via GPIO testen</div>
+          <div class="task-detail">Kurzes Python-Testskript schreiben: jeden Button-GPIO als Input mit Pull-Up konfigurieren (<code>GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)</code>) und Tastendruck im Terminal ausgeben. Alle Buttons einzeln testen und GPIO-Nummern dokumentieren.</div>
+        </div>
+        <span class="task-prio prio-high">Hoch</span>
+      </div>
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">WS2812B RGB-Streifen testen</div>
+          <div class="task-detail">Nach SPI-Aktivierung: <code>sudo python3 set_rgb.py --mode flash --color red</code> ausführen. LED-Streifen muss dreimal rot aufblinken. Falls keine Reaktion: SPI-Pin GPIO 10 und GND-Verbindung prüfen. Hinweis: set_rgb.py immer mit <code>sudo</code> ausführen.</div>
+        </div>
+        <span class="task-prio prio-high">Hoch</span>
+      </div>
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">Fingerabdrucksensor R503 verbindungstest</div>
+          <div class="task-detail">Nach UART-Aktivierung: Sensor an TX/RX/VCC/GND anschließen. Test mit: <code>python3 -c "from pyfingerprint.pyfingerprint import PyFingerprint; f=PyFingerprint('/dev/ttyAMA0',57600,0xFFFFFFFF,0x00000000); print(f.verifyPassword())"</code>. Ausgabe muss <code>True</code> sein.</div>
+        </div>
+        <span class="task-prio prio-critical">Kritisch</span>
+      </div>
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">Audio-Output testen</div>
+          <div class="task-detail"><code>aplay /usr/share/sounds/alsa/Front_Center.wav</code>. Wenn kein Ton: <code>sudo raspi-config → System Options → Audio</code> auf den richtigen Output setzen. Bei Audio+RGB-Konflikt: prüfen ob <code>/dev/spidev0.0</code> statt PWM verwendet wird.</div>
+        </div>
+        <span class="task-prio prio-medium">Mittel</span>
+      </div>
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">Webcam-Erkennung prüfen</div>
+          <div class="task-detail"><code>lsusb</code> muss die Webcam auflisten. Für einen Schnelltest: <code>sudo apt install fswebcam && fswebcam test.jpg</code>. Bild muss in <code>test.jpg</code> gespeichert werden.</div>
+        </div>
+        <span class="task-prio prio-low">Optional</span>
+      </div>
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">Komponentenmaße für Case-Person dokumentieren</div>
+          <div class="task-detail">Exakte Position und Maße aller verbauten Komponenten (Display, Buttons, FP-Sensor, Webcam, USB-Ports) aufmessen und an Person 1 weitergeben. Besonders: Abstand der DSI-Buchse zum Pi-Board und Powerbank-Anschlussposition.</div>
+        </div>
+        <span class="task-prio prio-high">Hoch</span>
+      </div>
+    </div>
+    <div class="criteria">
+      <div class="crit-title">Abnahmekriterien Phase B</div>
+      <ul>
+        <li>Alle Buttons lösen messbar GPIO-Events aus</li>
+        <li>RGB-Streifen blinkt auf Kommando in der richtigen Farbe</li>
+        <li><strong>R503 antwortet mit True auf verifyPassword()</strong> — das ist die Mindestvoraussetzung für Phase C</li>
+        <li>Maßliste an Person 1 übergeben</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ─── PHASE C ─── -->
+  <div class="phase">
+    <div class="phase-header">
+      <div class="phase-letter ph-c">C</div>
+      <div class="phase-header-text">
+        <h3>Fingerabdruck-Auth-System implementieren</h3>
+        <div class="meta">Startet sobald R503 via UART antwortet (Phase B)</div>
+      </div>
+      <div class="person-tags">
+        <span class="ptag p4">P4 Auth</span>
+      </div>
+    </div>
+    <div class="phase-body">
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">enroll.py ausführen — alle Team-Finger registrieren</div>
+          <div class="task-detail"><code>sudo python3 enroll.py</code> für jede Person ausführen. Das Skript gibt die Slot-ID aus (0, 1, 2, …). Slot-IDs notieren — sie werden in <code>user_map.json</code> eingetragen. Jede Person sollte den Zeigefinger des dominanten Handgelenks verwenden.</div>
+        </div>
+        <span class="task-prio prio-critical">Kritisch</span>
+      </div>
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">user_map.json befüllen</div>
+          <div class="task-detail">Für jede Person: Slot-ID → Name + RGB-Farbe (als [r,g,b]-Array) + Home-Pfad eintragen. Die Farbe wird später für die RGB-LEDs verwendet. Beispiel: <code>"0": {"name": "Alex", "color": [0, 120, 255], "home": "/home/pi/users/0"}</code></div>
+        </div>
+        <span class="task-prio prio-critical">Kritisch</span>
+      </div>
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">User-Verzeichnisse anlegen</div>
+          <div class="task-detail">Für jede Slot-ID: <code>mkdir -p /home/pi/users/0/.emulationstation</code>. Das <code>.emulationstation</code>-Unterverzeichnis muss existieren, bevor ES gestartet wird. Hier werden Spielstände, Themes und Einstellungen pro User gespeichert.</div>
+        </div>
+        <span class="task-prio prio-high">Hoch</span>
+      </div>
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">scan_finger.py testen — Scan und Matching prüfen</div>
+          <div class="task-detail"><code>sudo python3 scan_finger.py</code> ausführen, Finger auflegen. Ausgabe muss die korrekte Slot-ID (0, 1, …) sein. Unbekannten Finger testen → Exit-Code 3 erwartet. Timeout testen: 5 Sekunden warten → Exit-Code 2.</div>
+        </div>
+        <span class="task-prio prio-high">Hoch</span>
+      </div>
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">login.sh implementieren und manuell testen</div>
+          <div class="task-detail">Skript ausführen: <code>bash login.sh</code>. Erwarteter Ablauf: RGB pulsiert weiß → Finger auflegen → RGB wechselt zur User-Farbe → EmulationStation startet mit <code>--home /home/pi/users/&lt;id&gt;</code>. ES beenden → Loop startet neu.</div>
+        </div>
+        <span class="task-prio prio-critical">Kritisch</span>
+      </div>
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">Autostart via systemd einrichten</div>
+          <div class="task-detail">Service-File nach <code>/etc/systemd/system/retro-login.service</code> erstellen. Wichtige Felder: <code>Type=simple</code>, <code>ExecStart=/bin/bash /home/pi/login.sh</code>, <code>Restart=always</code>, <code>User=pi</code>. Dann: <code>sudo systemctl enable retro-login && sudo systemctl start retro-login</code>.</div>
+        </div>
+        <span class="task-prio prio-high">Hoch</span>
+      </div>
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">Fallback-Login implementieren (Button-Kombo)</div>
+          <div class="task-detail">In login.sh: Falls nach 5 Sekunden kein Finger erkannt, eine Button-Kombination abfragen (z.B. zwei Buttons gleichzeitig). Ermöglicht Login ohne Sensor bei Hardware-Problemen. GPIO-Nummern von Person 2 übernehmen.</div>
+        </div>
+        <span class="task-prio prio-medium">Mittel</span>
+      </div>
+    </div>
+    <div class="criteria">
+      <div class="crit-title">Abnahmekriterien Phase C</div>
+      <ul>
+        <li>Alle 5 Team-Finger werden korrekt erkannt und ihrer Slot-ID zugeordnet</li>
+        <li>Unbekannte Finger → RGB rot, kein Login</li>
+        <li>Nach Login startet ES mit dem korrekten User-Home-Verzeichnis</li>
+        <li>Nach ES-Exit startet der Login-Loop automatisch neu</li>
+        <li>Systemd-Service überlebt einen Reboot (<code>sudo reboot</code> → Login-Screen erscheint automatisch)</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ─── PHASE D ─── -->
+  <div class="phase">
+    <div class="phase-header">
+      <div class="phase-letter ph-d">D</div>
+      <div class="phase-header-text">
+        <h3>RetroPie & EmulationStation konfigurieren</h3>
+        <div class="meta">Parallel zu Phase C · benötigt fertiges OS aus Phase A</div>
+      </div>
+      <div class="person-tags">
+        <span class="ptag p3">P3 OS</span>
+        <span class="ptag p5">P5 UI</span>
+      </div>
+    </div>
+    <div class="phase-body">
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">ROMs in korrektes Verzeichnis kopieren</div>
+          <div class="task-detail">ROMs per SSH oder USB-Stick nach <code>~/RetroPie/roms/&lt;system&gt;/</code> kopieren. Unterstützte Systeme: <code>snes</code>, <code>gba</code>, <code>psx</code>, <code>nes</code>, <code>megadrive</code>. Mindestens 2–3 Spiele pro System für die Demo vorbereiten.</div>
+        </div>
+        <span class="task-prio prio-high">Hoch</span>
+      </div>
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">EmulationStation manuell mit --home testen</div>
+          <div class="task-detail"><code>emulationstation --home /home/pi/users/0</code> direkt im Terminal starten. ES muss starten und die ROMs aus dem globalen ROM-Verzeichnis anzeigen. Spielstände werden in <code>/home/pi/users/0/.emulationstation/</code> gespeichert. Kritisch für das Profile-System.</div>
+        </div>
+        <span class="task-prio prio-critical">Kritisch</span>
+      </div>
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">Futuristisches ES-Theme installieren</div>
+          <div class="task-detail">Empfehlung: <strong>Alekfull NX</strong> oder <strong>Carbon Flat</strong>. Installation via RetroPie-Setup-Skript: <code>sudo ~/RetroPie-Setup/retropie_setup.sh → Manage Packages → Themes</code>. Theme pro User-Profil in der ES-Konfiguration setzen — so hat jeder User sein eigenes Theme.</div>
+        </div>
+        <span class="task-prio prio-high">Hoch</span>
+      </div>
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">Controller-Mapping konfigurieren</div>
+          <div class="task-detail">Buttons-GPIO-Mapping in RetroArch / EmulationStation eintragen. Alternativ: <code>mk_arcade_joystick_rpi</code>-Kernel-Modul für GPIO-Buttons verwenden. GPIO-Nummern von Person 2 übernehmen. Jede Button-Funktion (A/B/Start/Select) testen.</div>
+        </div>
+        <span class="task-prio prio-high">Hoch</span>
+      </div>
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">Boot-Zeit optimieren</div>
+          <div class="task-detail">Nicht benötigte Services deaktivieren: <code>sudo systemctl disable bluetooth triggerhappy</code>. Splash-Screen aktivieren: in <code>/boot/firmware/cmdline.txt</code> <code>quiet splash</code> hinzufügen. Ziel: unter 30 Sekunden vom Einschalten bis zum Login-Screen.</div>
+        </div>
+        <span class="task-prio prio-medium">Mittel</span>
+      </div>
+    </div>
+    <div class="criteria">
+      <div class="crit-title">Abnahmekriterien Phase D</div>
+      <ul>
+        <li>ES startet mit <code>--home</code> und zeigt ROMs korrekt an</li>
+        <li>Mindestens 1 Spiel pro System lässt sich starten und spielen</li>
+        <li>Controller-Buttons funktionieren im Spiel</li>
+        <li>Futuristisches Theme ist aktiv und auf dem DSI-Display gut lesbar</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ─── PHASE E ─── -->
+  <div class="phase">
+    <div class="phase-header">
+      <div class="phase-letter ph-e">E</div>
+      <div class="phase-header-text">
+        <h3>RGB-Effekte & futuristische UI</h3>
+        <div class="meta">Parallel zu C & D · integriert mit Phase C am Ende</div>
+      </div>
+      <div class="person-tags">
+        <span class="ptag p5">P5 UI</span>
+      </div>
+    </div>
+    <div class="phase-body">
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">set_rgb.py fertigstellen — alle Modi implementieren</div>
+          <div class="task-detail">Modi: <code>off</code>, <code>solid --user &lt;id&gt;</code>, <code>flash --color red</code>, <code>pulse</code>. Farben aus <code>user_map.json</code> einlesen statt hart kodieren: <code>json.load(open("user_map.json"))[user_id]["color"]</code>. So bleibt das System erweiterbar.</div>
+        </div>
+        <span class="task-prio prio-high">Hoch</span>
+      </div>
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">Login-RGB-Effekt finalisieren</div>
+          <div class="task-detail">Sequenz: Weiß pulsieren (warten) → Finger erkannt → kurzer weißer Blitz → sanfter Übergang zur User-Farbe → User-Farbe pulsiert einmal → bleibt in der User-Farbe stabil während ES läuft → LEDs aus nach ES-Exit. Übergangs-Timing: ca. 0,8 Sekunden.</div>
+        </div>
+        <span class="task-prio prio-critical">Kritisch</span>
+      </div>
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">Futuristischen Splash-Screen erstellen</div>
+          <div class="task-detail">Splash-Image als PNG (Auflösung des Waveshare 5": 800×480 oder 1280×800 prüfen). Design: dunkler Hintergrund, Konsolen-Logo, ggf. Scanlines-Effekt. Splash aktivieren via <code>sudo raspi-config → Display → Splash screen</code> oder Plymouth-Splash.</div>
+        </div>
+        <span class="task-prio prio-medium">Mittel</span>
+      </div>
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">UI-Sounds einbinden</div>
+          <div class="task-detail">Kurze Sound-Effekte (<code>.wav</code>, unter 1 Sekunde) für: Login-Erfolg, Login-Fehler, ES-Start. Abspielen via <code>aplay sound.wav &amp;</code> parallel zum RGB-Effekt in login.sh. Sounds im futuristischen Stil (Sci-Fi-Beeps, keine Retro-Chiptunes für den Login-Screen).</div>
+        </div>
+        <span class="task-prio prio-medium">Mittel</span>
+      </div>
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">Demo-Flow und GitHub README vorbereiten</div>
+          <div class="task-detail">README.md mit: Projektbeschreibung, Komponenten-Liste, Verdrahtungsdiagramm, Setup-Anleitung (Phase A–C als Schritte), Screenshot des laufenden Systems. Lizenz: MIT. Repo-Struktur: <code>/scripts</code>, <code>/config</code>, <code>/docs</code>, <code>/media</code>.</div>
+        </div>
+        <span class="task-prio prio-high">Hoch</span>
+      </div>
+    </div>
+    <div class="criteria">
+      <div class="crit-title">Abnahmekriterien Phase E</div>
+      <ul>
+        <li>Jeder User hat eine erkennbar andere RGB-Farbe beim Login</li>
+        <li>Unbekannter Finger → LEDs blinken rot</li>
+        <li>Login-Sound ist zu hören und zeitlich mit RGB synchronisiert</li>
+        <li>Splash-Screen erscheint beim Boot statt Kernel-Textausgabe</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ─── PHASE F ─── -->
+  <div class="phase">
+    <div class="phase-header">
+      <div class="phase-letter ph-f">F</div>
+      <div class="phase-header-text">
+        <h3>Integration & End-to-End-Test</h3>
+        <div class="meta">Alle Phasen A–E müssen abgeschlossen sein</div>
+      </div>
+      <div class="person-tags">
+        <span class="ptag p2">P2</span>
+        <span class="ptag p3">P3</span>
+        <span class="ptag p4">P4</span>
+        <span class="ptag p5">P5</span>
+      </div>
+    </div>
+    <div class="phase-body">
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">Vollständigen Login-Loop für alle 5 User testen</div>
+          <div class="task-detail">Jeden der 5 Finger nacheinander testen. Erwartetes Verhalten: RGB weiß → Scan → RGB User-Farbe + Sound → ES mit korrektem Profil → Spiel starten → ES beenden → RGB aus → RGB weiß → nächster User. Jeden Schritt abhaken.</div>
+        </div>
+        <span class="task-prio prio-critical">Kritisch</span>
+      </div>
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">Spielstand-Isolation prüfen</div>
+          <div class="task-detail">User 0 startet ein Spiel, speichert, beendet ES. User 1 loggt sich ein → darf den Spielstand von User 0 nicht sehen. Spielstände liegen in <code>/home/pi/users/&lt;id&gt;/.emulationstation/</code>, nicht im globalen Pfad. Isolation durch <code>--home</code> Flag sicherstellen.</div>
+        </div>
+        <span class="task-prio prio-high">Hoch</span>
+      </div>
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">Reboot-Test: System ohne Maus/Tastatur bedienbar</div>
+          <div class="task-detail">Pi kalt starten (Powerbank ein). Ohne externe Geräte muss die Konsole automatisch in den Login-Screen starten. Alle Funktionen nur mit den eingebauten Buttons und dem Fingerabdrucksensor erreichbar sein.</div>
+        </div>
+        <span class="task-prio prio-critical">Kritisch</span>
+      </div>
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">Stresstest: 10x Login/Logout hintereinander</div>
+          <div class="task-detail">Den Login-Logout-Zyklus 10 Mal wiederholen. Login-Loop darf nicht abstürzen oder hängen. Systemd-Service muss nach jedem ES-Exit zuverlässig neu starten. Falls Probleme: <code>journalctl -u retro-login -f</code> für Live-Logs.</div>
+        </div>
+        <span class="task-prio prio-high">Hoch</span>
+      </div>
+    </div>
+    <div class="criteria">
+      <div class="crit-title">Abnahmekriterien Phase F — Demo-Ready</div>
+      <ul>
+        <li>Alle 5 User können sich einloggen und ein Spiel starten</li>
+        <li>Spielstände sind pro User isoliert</li>
+        <li>System startet nach Reboot selbstständig ohne externe Eingabegeräte</li>
+        <li><strong>10x Login/Logout ohne Absturz — das ist das Mindest-Kriterium für die Demo</strong></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ─── PHASE G ─── -->
+  <div class="phase">
+    <div class="phase-header">
+      <div class="phase-letter ph-g">G</div>
+      <div class="phase-header-text">
+        <h3>Case-Montage & Demo-Vorbereitung</h3>
+        <div class="meta">Person 1 durchgehend · finale Zusammenführung</div>
+      </div>
+      <div class="person-tags">
+        <span class="ptag p1">P1 Case</span>
+        <span class="ptag p5">P5 UI</span>
+      </div>
+    </div>
+    <div class="phase-body">
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">Alle Komponenten ins Case einbauen</div>
+          <div class="task-detail">Pi, Display, Powerbank, FP-Sensor, Buttons, RGB-Streifen und Webcam fest im Gehäuse montieren. Besonders: Kabel so verlegen dass keine Verbindungen unter Druck geraten. FP-Sensor muss von außen zugänglich und gut erreichbar sein (Demo!). RGB-Streifen entlang des Case-Rahmens.</div>
+        </div>
+        <span class="task-prio prio-high">Hoch</span>
+      </div>
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">Abschluss-Test im zusammengebauten Zustand</div>
+          <div class="task-detail">Nach der Montage alle Phase-F-Tests wiederholen. Besonders: Hitze-Check nach 20 Minuten Betrieb (Pi 5 wird warm), Kabel-Zugtest, Button-Erreichbarkeit. Falls der Pi wärmer als 70°C wird: Lüftungsschlitze im Case prüfen oder kleinen Lüfter ergänzen.</div>
+        </div>
+        <span class="task-prio prio-critical">Kritisch</span>
+      </div>
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">Demo-Script für die Präsentation festlegen</div>
+          <div class="task-detail">Ablauf festlegen: (1) Einschalten + Splash zeigen, (2) Person 1 loggt sich ein → RGB Farbe 1, (3) Spiel kurz spielen, (4) Logout, (5) Person 2 loggt sich ein → andere RGB Farbe, (6) GitHub-Repo auf Laptop zeigen. Max. 3 Minuten. Alle 5 Personen kurz durch die Demo führen.</div>
+        </div>
+        <span class="task-prio prio-high">Hoch</span>
+      </div>
+      <div class="task">
+        <div class="task-check"></div>
+        <div class="task-content">
+          <div class="task-title">GitHub-Repository veröffentlichen</div>
+          <div class="task-detail">Repo public schalten. Alle Skripte (<code>login.sh</code>, <code>scan_finger.py</code>, <code>set_rgb.py</code>, <code>enroll.py</code>, <code>user_map.json</code> als Template) committen. MIT-Lizenz-Datei hinzufügen. README mit Foto der fertigen Konsole ergänzen.</div>
+        </div>
+        <span class="task-prio prio-medium">Mittel</span>
+      </div>
+    </div>
+    <div class="criteria">
+      <div class="crit-title">Abnahmekriterien Phase G — Finales Produkt</div>
+      <ul>
+        <li>Konsole ist vollständig verbaut, keine losen Kabel sichtbar</li>
+        <li>FP-Sensor von außen gut erreichbar</li>
+        <li>System läuft 20+ Minuten ohne Überhitzung oder Absturz</li>
+        <li>Demo-Ablauf sitzt — alle 5 Personen haben ihn einmal durchgespielt</li>
+        <li>GitHub-Repo ist öffentlich und enthält alle Skripte + README</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+<!-- ════════════════════════════════════════════ FOOTER -->
+<footer class="doc-footer">
+  <div>RetroConsole OS · Hackathon-Projektplan</div>
+  <div class="oss-badge">
+    <div class="oss-dot"></div>
+    MIT Open Source License
+  </div>
+</footer>
+
+</div>
+</body>
+</html>
