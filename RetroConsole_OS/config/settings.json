@@ -1,0 +1,17 @@
+{
+  "hardware": {
+    "fingerprint_port": "/dev/ttyAMA0",
+    "fingerprint_baud": 57600,
+    "ws2812b_pixel_count": 16
+  },
+  "ui": {
+    "fullscreen": true,
+    "resolution": [1920, 1080],
+    "scan_timeout_sec": 5,
+    "enroll_timeout_sec": 30
+  },
+  "emulationstation": {
+    "binary": "emulationstation",
+    "users_base_dir": "/home/pi/users"
+  }
+}

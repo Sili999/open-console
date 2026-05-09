@@ -12,6 +12,18 @@ except ImportError:
 
 CONFIG_FILE = '../config/user_map.json'
 
+
+def _wait_for_finger(f, timeout=30):
+    """Poll readImage() until a finger is placed or timeout expires."""
+    import time as _time
+    deadline = _time.time() + timeout
+    while _time.time() < deadline:
+        if f.readImage():
+            return True
+        _time.sleep(0.1)
+    return False
+
+
 def set_aura_led(f, control, speed, color, count):
     """
     Attempts to control the R503 Aura LED.
@@ -38,27 +50,27 @@ def enroll_finger():
         set_aura_led(f, 1, 0x55, 2, 0)
 
         print('Waiting for finger...')
-        
-        ## Read finger 1
-        while f.readImage() == False:
-            pass
+
+        ## Read finger 1 (with 30 s timeout)
+        if not _wait_for_finger(f, timeout=30):
+            raise TimeoutError('No finger detected after 30 s (scan 1)')
 
         f.convertImage(0x01)
-        
+
         print('Finger recognized! Waiting for removal...')
         # Set Aura LED to Flashing Blue
         set_aura_led(f, 2, 0x55, 2, 0)
-        
+
         while f.readImage() == True:
             pass
 
         print('Place same finger again...')
         # Set Aura LED to Breathing Blue again
         set_aura_led(f, 1, 0x55, 2, 0)
-        
-        ## Read finger 2
-        while f.readImage() == False:
-            pass
+
+        ## Read finger 2 (with 30 s timeout)
+        if not _wait_for_finger(f, timeout=30):
+            raise TimeoutError('No finger detected after 30 s (scan 2)')
 
         f.convertImage(0x02)
         
