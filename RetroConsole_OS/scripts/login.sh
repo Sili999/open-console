@@ -1,4 +1,4 @@
-#!/bin/bash
+ #!/bin/bash
 
 # Configuration
 SCRIPT_DIR=$(dirname "$(readlink -f "$0")")

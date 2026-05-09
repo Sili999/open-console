@@ -524,6 +524,109 @@ class TestLoginUIStateMachine(unittest.TestCase):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# LEDManager robustness — faulty wiring / SPI failures at runtime
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestLEDManagerRobustness(unittest.TestCase):
+    """Simulate broken wiring and SPI errors; verify the rest of the program
+    continues unaffected (no uncaught exceptions, no frozen state)."""
+
+    def _make_mgr_with_strip(self):
+        """LEDManager with a controllable MagicMock strip already attached."""
+        from scripts.led_manager import LEDManager
+        mgr = LEDManager.__new__(LEDManager)
+        mgr._n = 4
+        strip = MagicMock()
+        mgr._strip = strip
+        return mgr, strip
+
+    # ── solid() failures ─────────────────────────────────────────────────────
+
+    def test_solid_show_error_does_not_propagate(self):
+        """strip.show() raising (e.g. SPI write timeout) must not crash caller."""
+        mgr, strip = self._make_mgr_with_strip()
+        strip.show.side_effect = RuntimeError("SPI write timeout — check wiring")
+        mgr.solid(255, 0, 0)   # must not raise
+        self.assertIsNone(mgr._strip, "strip must be disabled after write error")
+
+    def test_solid_fill_error_does_not_propagate(self):
+        """strip.fill() raising (e.g. OSError on SPI device) must not crash caller."""
+        mgr, strip = self._make_mgr_with_strip()
+        strip.fill.side_effect = OSError("SPI bus error — check /dev/spidev0.0")
+        mgr.solid(0, 255, 0)   # must not raise
+        self.assertIsNone(mgr._strip)
+
+    def test_strip_disabled_after_first_write_error(self):
+        """After one hardware error, strip → None; subsequent calls are no-ops."""
+        mgr, strip = self._make_mgr_with_strip()
+        strip.show.side_effect = RuntimeError("disconnected")
+        mgr.solid(100, 100, 100)   # triggers error → strip = None
+        mgr.solid(255, 255, 255)   # must be a silent no-op, not re-raise
+        self.assertIsNone(mgr._strip)
+        self.assertEqual(strip.show.call_count, 1,
+                         "show() must not be called again after strip is disabled")
+
+    # ── composite methods stay safe ──────────────────────────────────────────
+
+    def test_flash_does_not_crash_on_led_error(self):
+        """flash() must complete without raising even if LED hardware fails mid-loop."""
+        mgr, strip = self._make_mgr_with_strip()
+        strip.show.side_effect = RuntimeError("short circuit")
+        mgr.flash(255, 0, 0, times=3, on_ms=1, off_ms=1)   # must not raise
+
+    def test_pulse_aborts_cleanly_on_error(self):
+        """pulse() must not block or propagate if LED fails mid-animation."""
+        mgr, strip = self._make_mgr_with_strip()
+        call_count = [0]
+        def _fail_after_two(*a, **kw):
+            call_count[0] += 1
+            if call_count[0] > 2:
+                raise RuntimeError("data line disconnected mid-pulse")
+        strip.show.side_effect = _fail_after_two
+        mgr.pulse(0, 255, 0, steps=4, delay=0)   # must not raise
+
+    def test_off_is_safe_after_strip_failure(self):
+        """off() called at program exit must never raise, even after prior failure."""
+        mgr, strip = self._make_mgr_with_strip()
+        strip.show.side_effect = RuntimeError("gone")
+        mgr.solid(255, 0, 0)   # disables strip
+        mgr.off()              # must not raise — called in start.py finally block
+
+    # ── constructor robustness ────────────────────────────────────────────────
+
+    def test_spi_permission_error_at_init(self):
+        """PermissionError on /dev/spidev0.0 (user not in 'spi' group) must not
+        crash the constructor — the program starts without LEDs."""
+        import scripts.led_manager as led_mod
+        orig = led_mod._HW_AVAILABLE
+        try:
+            led_mod._HW_AVAILABLE = True
+            sys.modules['busio'].SPI.side_effect = PermissionError(
+                "/dev/spidev0.0: Permission denied — add user to 'spi' group"
+            )
+            mgr = led_mod.LEDManager(n_pixels=8)
+            self.assertIsNone(mgr._strip)
+        finally:
+            led_mod._HW_AVAILABLE = orig
+            sys.modules['busio'].SPI.side_effect = None
+
+    def test_spi_device_node_missing_at_init(self):
+        """Missing /dev/spidev0.0 (SPI not enabled in config.txt) must not crash."""
+        import scripts.led_manager as led_mod
+        orig = led_mod._HW_AVAILABLE
+        try:
+            led_mod._HW_AVAILABLE = True
+            sys.modules['busio'].SPI.side_effect = FileNotFoundError(
+                "/dev/spidev0.0: No such file — enable with dtparam=spi=on"
+            )
+            mgr = led_mod.LEDManager(n_pixels=8)
+            self.assertIsNone(mgr._strip)
+        finally:
+            led_mod._HW_AVAILABLE = orig
+            sys.modules['busio'].SPI.side_effect = None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # enroll.py regression tests
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -597,6 +700,7 @@ if __name__ == '__main__':
     suite  = unittest.TestSuite()
     suite.addTests(loader.loadTestsFromTestCase(TestFingerprintManager))
     suite.addTests(loader.loadTestsFromTestCase(TestLEDManager))
+    suite.addTests(loader.loadTestsFromTestCase(TestLEDManagerRobustness))
     suite.addTests(loader.loadTestsFromTestCase(TestButtonManager))
     suite.addTests(loader.loadTestsFromTestCase(TestLoginUIStateMachine))
     suite.addTests(loader.loadTestsFromTestCase(TestEnrollRemovalTimeout))

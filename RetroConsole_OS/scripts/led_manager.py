@@ -43,9 +43,14 @@ class LEDManager:
                       "Check dtparam=spi=on in /boot/firmware/config.txt.")
 
     def solid(self, r, g, b):
-        if self._strip:
+        if self._strip is None:
+            return
+        try:
             self._strip.fill((int(r), int(g), int(b)))
             self._strip.show()
+        except Exception as exc:
+            print(f"[LEDManager] LED write failed ({exc}) — disabling strip.")
+            self._strip = None
 
     def flash(self, r, g, b, times=3, on_ms=200, off_ms=200):
         for _ in range(times):
