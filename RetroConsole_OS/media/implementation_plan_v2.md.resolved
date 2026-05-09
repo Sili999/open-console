@@ -1,0 +1,387 @@
+# RetroConsole OS — Implementationsplan v2
+## Zielstellung: Futuristische Login-UI mit Fingerabdruck-Authentifizierung
+
+> **Ziel:** Der Nutzer sieht beim Start eine futuristische, animierte UI.
+> Er kann sich entweder per Fingerabdruck anmelden oder einen neuen Account anlegen.
+> Nach erfolgreichem Login startet EmulationStation im Profil des Nutzers.
+
+---
+
+## Architektur-Übersicht
+
+```mermaid
+graph TD
+    A[Boot / Autostart] --> B[start.py — Orchestrator]
+    B --> C{UI: login_ui.py\nPygame Fullscreen}
+    C -->|Finger erkannt| D[scan_finger.py\nR503 via UART]
+    C -->|Taste N| E[Enrollment-Flow\nUI-Wizard]
+    D -->|Match| F[user_map.json\nlesen]
+    D -->|Unbekannt| C
+    D -->|Timeout| C
+    F --> G[LED-Farbe setzen\nled_manager.py]
+    G --> H[EmulationStation\n--home /users/ID]
+    E --> I[fingerprint_manager.py\nenroll()]
+    I --> F
+    B -.->|LED-Bereitschaft| J[led_manager.py\nWS2812B + R503]
+```
+
+---
+
+## Neue Dateistruktur
+
+```
+RetroConsole_OS/
+├── config/
+│   ├── user_map.json          ← bestehend (Nutzer-Daten)
+│   └── settings.json          ← NEU (Hardware-Konfig, UI-Einstellungen)
+│
+├── scripts/
+│   ├── fingerprint_manager.py ← NEU (vereinheitlichter Sensor-Manager)
+│   ├── led_manager.py         ← NEU (Pi 5-kompatibler LED-Manager)
+│   ├── scan_finger.py         ← GEÄNDERT (Timeout-Fix, Aura-LED-Fix)
+│   ├── enroll.py              ← GEÄNDERT (Timeout-Fix, nutzt Manager)
+│   └── set_rgb.py             ← GEÄNDERT (neopixel_spi für Pi 5)
+│
+├── ui/
+│   ├── login_ui.py            ← NEU (Pygame Haupt-App, 5 Screens)
+│   ├── screens.py             ← NEU (Screen-Klassen: Idle, Scan, ...)
+│   ├── animations.py          ← NEU (Partikel, Glow, Scan-Effekte)
+│   └── assets/
+│       ├── fonts/             ← Orbitron / Share Tech Mono (Google Fonts)
+│       └── sfx/               ← Optionale Sound-Effekte (beep, success)
+│
+├── start.py                   ← NEU (ersetzt login.sh, Einstiegspunkt)
+├── tests/
+│   └── test_mock.py           ← bestehend + erweitert
+└── docs/
+    └── README.md
+```
+
+---
+
+## Phase 1 — Hardware-Fixes (Voraussetzung für alles)
+
+> [!IMPORTANT]
+> Diese Fixes müssen **zuerst** abgeschlossen sein, bevor die UI funktionieren kann.
+
+### 1.1 Fix: WS2812B auf Pi 5 (`set_rgb.py` → `led_manager.py`)
+
+**Problem:** `rpi_ws281x` nutzt DMA/`/dev/mem` — auf Pi 5 mit RP1-Chip nicht unterstützt.
+
+**Lösung:** Wechsel zu `adafruit-circuitpython-neopixel-spi` (SPI-basiert, Pi 5 kompatibel).
+
+```python
+# led_manager.py (NEU)
+import board, busio, neopixel_spi
+
+class LEDManager:
+    def __init__(self, n_pixels=16):
+        spi = busio.SPI(board.SCK, MOSI=board.MOSI)
+        self.strip = neopixel_spi.NeoPixel_SPI(
+            spi, n_pixels, pixel_order=neopixel_spi.GRB, auto_write=False
+        )
+
+    def solid(self, r, g, b):
+        self.strip.fill((r, g, b)); self.strip.show()
+
+    def flash(self, r, g, b, times=3):
+        for _ in range(times):
+            self.solid(r, g, b); time.sleep(0.2)
+            self.solid(0, 0, 0);  time.sleep(0.2)
+
+    def off(self):
+        self.solid(0, 0, 0)
+```
+
+**Installation auf Pi:**
+```bash
+sudo pip3 install adafruit-circuitpython-neopixel-spi
+sudo pip3 install adafruit-blinka
+```
+
+---
+
+### 1.2 Fix: R503 Aura LED (Raw UART Fallback)
+
+**Problem:** `pyfingerprint` auf PyPI hat kein `setAuraLed`.
+Der R503 nutzt Befehl `0x35` (Aura LED Control).
+
+**Lösung:** Raw-Byte-Implementierung als Fallback.
+
+```python
+# fingerprint_manager.py (NEU) — Auszug
+def set_aura_led(self, control, speed, color, count):
+    """
+    control: 1=breathing, 2=flashing, 3=always on, 4=off
+    color:   1=red, 2=blue, 3=purple, 4=green, 5=yellow, 6=cyan, 7=white
+    """
+    if hasattr(self._sensor, 'setAuraLed'):
+        self._sensor.setAuraLed(control, speed, color, count)
+    else:
+        # Raw UART: Paket für Befehl 0x35
+        # Payload: [control, speed, color, count]
+        self._send_raw_command(0x35, [control, speed, color, count])
+
+def _send_raw_command(self, cmd, params):
+    """Sendet rohen Fingerprint-Befehl via serieller Schnittstelle."""
+    # Paket-Format: Header(2) + Addr(4) + PID(1) + Len(2) + Cmd(1) + Params + CS(2)
+    header = bytes([0xEF, 0x01])
+    addr   = bytes([0xFF, 0xFF, 0xFF, 0xFF])
+    pid    = bytes([0x01])  # Command packet
+    payload = bytes([cmd] + params)
+    length  = len(payload) + 2  # +2 für Checksum
+    checksum = pid[0] + (length >> 8) + (length & 0xFF) + sum(payload)
+    packet = header + addr + pid + bytes([(length>>8)&0xFF, length&0xFF]) + payload + bytes([(checksum>>8)&0xFF, checksum&0xFF])
+    self._serial.write(packet)
+    time.sleep(0.05)
+```
+
+---
+
+### 1.3 Fix: Timeout in `enroll.py`
+
+```python
+# Vorher (hängt für immer):
+while f.readImage() == False:
+    pass
+
+# Nachher:
+def wait_for_finger(sensor, timeout=30):
+    start = time.time()
+    while not sensor.readImage():
+        if time.time() - start > timeout:
+            raise TimeoutError("Kein Finger nach 30s")
+        time.sleep(0.1)
+```
+
+---
+
+## Phase 2 — UI Design (Pygame Fullscreen)
+
+### 2.1 Visuelles Konzept: "Cyber Retro"
+
+| Element | Design |
+|---|---|
+| Hintergrund | Tiefes Schwarz (#0A0A0F) mit animierten Partikel-Sternen |
+| Primärfarbe | Cyan (#00F5FF) / Electric Blue (#0066FF) |
+| Akzentfarbe | Neon Magenta (#FF006E) |
+| Schrift | **Orbitron Bold** (futuristisch), **Share Tech Mono** (HUD-Text) |
+| Effekte | CRT-Scan-Lines, Glow-Bloom, Fingerabdruck-Puls-Animation |
+
+### 2.2 Screen-Zustände (State Machine)
+
+```
+┌──────────┐   Finger erkannt   ┌──────────┐   Match    ┌──────────────┐
+│  IDLE    │ ──────────────────▶│  SCAN    │──────────▶ │   SUCCESS    │
+│ (warten) │                    │(scanning)│            │(Login + ES)  │
+└──────────┘                    └──────────┘            └──────────────┘
+     │  Taste [N]                    │ Unbekannt              
+     ▼                               ▼                        
+┌──────────┐                   ┌──────────┐                   
+│  ENROLL  │                   │   FAIL   │                   
+│ (Wizard) │                   │ (Retry)  │                   
+└──────────┘                   └──────────┘                   
+```
+
+### 2.3 Screen-Beschreibungen
+
+#### IDLE Screen
+```
+╔══════════════════════════════════════╗
+║  ░░░░░  RETRO CONSOLE OS  ░░░░░      ║
+║                                      ║
+║       ◉ [animierter Fingerabdruck]   ║
+║         (pulsierendes Cyan-Glow)     ║
+║                                      ║
+║   FINGER AUFLEGEN ZUM ANMELDEN       ║
+║                                      ║
+║   ───────────────────────────        ║
+║   [N] Neuen Nutzer anlegen           ║
+╚══════════════════════════════════════╝
+```
+- Partikel-Sterne im Hintergrund
+- Fingerabdruck-Icon mit Breathing-Glow (Cyan)
+- CRT-Scan-Line-Overlay (subtil)
+
+#### SCAN Screen
+```
+╔══════════════════════════════════════╗
+║                                      ║
+║       ◎ [Scan-Linie fährt durch]     ║
+║         SCANNEN...                   ║
+║                                      ║
+║   ████████████░░░░░  [Timeout-Bar]   ║
+╚══════════════════════════════════════╝
+```
+- Horizontale Scan-Linie animiert über Fingerabdruck
+- 5-Sekunden Fortschrittsbalken
+
+#### SUCCESS Screen
+```
+╔══════════════════════════════════════╗
+║                                      ║
+║   ✦ WILLKOMMEN, [NAME]! ✦            ║
+║                                      ║
+║   [User-Farbe Glow-Explosion]        ║
+║   Starte EmulationStation...         ║
+╚══════════════════════════════════════╝
+```
+- Glow-Burst-Animation in Nutzerfarbe
+- Fade-Out zu EmulationStation
+
+#### FAIL Screen
+```
+╔══════════════════════════════════════╗
+║   ⚠ UNBEKANNTER FINGERABDRUCK        ║
+║                                      ║
+║   Bitte erneut versuchen oder        ║
+║   [N] Neuen Nutzer anlegen           ║
+╚══════════════════════════════════════╝
+```
+- Roter Blink-Effekt
+
+#### ENROLL Wizard (5 Schritte)
+```
+Schritt 1: "Finger auflegen"     → Sensor liest
+Schritt 2: "Finger entfernen"    → Warten
+Schritt 3: "Finger erneut auflegen" → zweiter Scan
+Schritt 4: "Name eingeben"       → On-Screen-Keyboard (pygame / keyboard-Input)
+Schritt 5: "Farbe wählen"        → Color-Picker (8 Preset-Farben)
+Abschluss: "Account erstellt!"   → Weiter zu IDLE
+```
+
+---
+
+## Phase 3 — Unified Orchestrator (`start.py`)
+
+Ersetzt `login.sh` komplett. Ein einziger Python-Prozess, der:
+- Die Pygame-UI startet
+- Den Fingerprint-Manager in einem Thread betreibt
+- LED-Feedback koordiniert
+- EmulationStation nach Login startet
+
+```python
+# start.py (Grob-Struktur)
+import subprocess, threading
+from ui.login_ui import LoginUI
+from scripts.fingerprint_manager import FingerprintManager
+from scripts.led_manager import LEDManager
+
+def main():
+    leds = LEDManager()
+    sensor = FingerprintManager('/dev/ttyAMA0')
+    ui = LoginUI(sensor=sensor, leds=leds)
+    
+    # UI-Callback: nach erfolgreichem Login
+    def on_login(slot_id, user_data):
+        leds.solid(*user_data['color'])
+        subprocess.run(['emulationstation', '--home', user_data['home']])
+        leds.off()
+        ui.reset_to_idle()
+
+    ui.on_login_callback = on_login
+    ui.run()  # blocking: Pygame main loop
+
+if __name__ == '__main__':
+    main()
+```
+
+---
+
+## Phase 4 — Autostart & Integration
+
+### 4.1 systemd Service (Pi)
+
+```ini
+# /etc/systemd/system/retroconsole-login.service
+[Unit]
+Description=RetroConsole Login UI
+After=graphical.target
+
+[Service]
+User=pi
+Environment=DISPLAY=:0
+ExecStart=/usr/bin/python3 /home/pi/RetroConsole_OS/start.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=graphical.target
+```
+
+```bash
+sudo systemctl enable retroconsole-login.service
+sudo systemctl start retroconsole-login.service
+```
+
+### 4.2 `settings.json` (neue Config-Datei)
+
+```json
+{
+  "hardware": {
+    "fingerprint_port": "/dev/ttyAMA0",
+    "fingerprint_baud": 57600,
+    "ws2812b_pin": 10,
+    "ws2812b_count": 16
+  },
+  "ui": {
+    "fullscreen": true,
+    "resolution": [1920, 1080],
+    "scan_timeout_sec": 5,
+    "enroll_timeout_sec": 30,
+    "theme": "cyber_retro"
+  },
+  "emulationstation": {
+    "binary": "emulationstation",
+    "users_base_dir": "/home/pi/users"
+  }
+}
+```
+
+---
+
+## Abhängigkeiten (pip install auf Pi)
+
+```bash
+# Hardware
+sudo pip3 install pyfingerprint
+sudo pip3 install adafruit-circuitpython-neopixel-spi adafruit-blinka
+
+# UI
+sudo pip3 install pygame
+
+# Utils
+sudo pip3 install Pillow  # für Font/Image-Loading in Pygame
+```
+
+---
+
+## Implementierungs-Reihenfolge & Zeitschätzung
+
+| Phase | Aufgabe | Priorität | Dauer |
+|---|---|---|---|
+| **1a** | `led_manager.py` (neopixel_spi) | 🔴 Kritisch | ~1h |
+| **1b** | `fingerprint_manager.py` (Raw LED + Timeout) | 🔴 Kritisch | ~2h |
+| **1c** | `scan_finger.py` + `enroll.py` refactored | 🟠 Hoch | ~1h |
+| **2a** | `ui/animations.py` (Partikel, Glow) | 🟠 Hoch | ~2h |
+| **2b** | `ui/screens.py` (5 Screen-Klassen) | 🟠 Hoch | ~3h |
+| **2c** | `ui/login_ui.py` (State Machine + Main Loop) | 🟠 Hoch | ~2h |
+| **3** | `start.py` (Orchestrator) | 🟡 Mittel | ~1h |
+| **4** | systemd Service + settings.json | 🟡 Mittel | ~30min |
+| **5** | Tests erweitern | 🟢 Niedrig | ~1h |
+
+**Geschätzte Gesamtdauer:** ~13 Stunden
+
+---
+
+## Offene Fragen (Feedback benötigt)
+
+> [!IMPORTANT]
+> Bitte beantworte folgende Fragen, damit der Plan finalisiert werden kann:
+
+1. **Display:** Welche Auflösung hat der Monitor am Pi? (z.B. 1920×1080, 1280×720)
+2. **WS2812B:** Wie viele LEDs hat der externe Strip genau? (aktuell: 16)
+3. **Tastatur:** Ist eine physische Tastatur verfügbar für das Name-Eingabe-Feld beim Enrollment? Oder soll ein On-Screen-Keyboard implementiert werden?
+4. **Fallback:** Soll der GPIO-Fallback-Login (Tasten statt Fingerabdruck) jetzt implementiert werden, oder erst in einem späteren Sprint?
+5. **Sound:** Sollen Sound-Effekte (Scan-Beep, Success-Sound) eingebaut werden?
+6. **Mehrere Nutzer gleichzeitig:** Wie viele Profile sind geplant (Kapazität des R503: 200)?
