@@ -58,11 +58,15 @@ def enroll_finger():
         f.convertImage(0x01)
 
         print('Finger recognized! Waiting for removal...')
-        # Set Aura LED to Flashing Blue
         set_aura_led(f, 2, 0x55, 2, 0)
 
-        while f.readImage() == True:
-            pass
+        removal_deadline = time.time() + 15
+        while time.time() < removal_deadline:
+            if not f.readImage():
+                break
+            time.sleep(0.05)
+        else:
+            raise TimeoutError('Finger not removed after 15 s')
 
         print('Place same finger again...')
         # Set Aura LED to Breathing Blue again

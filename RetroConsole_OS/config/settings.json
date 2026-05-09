@@ -2,13 +2,33 @@
   "hardware": {
     "fingerprint_port": "/dev/ttyAMA0",
     "fingerprint_baud": 57600,
-    "ws2812b_pixel_count": 16
+    "ws2812b_pixel_count": 16,
+    "buttons": {
+      "up":       17,
+      "down":     27,
+      "left":     22,
+      "right":    23,
+      "confirm":  24,
+      "back":     25,
+      "new_user":  5,
+      "quit":      6
+    }
   },
   "ui": {
     "fullscreen": true,
-    "resolution": [1920, 1080],
+    "resolution": [800, 480],
     "scan_timeout_sec": 5,
     "enroll_timeout_sec": 30
+  },
+  "keybindings": {
+    "up":       "K_UP",
+    "down":     "K_DOWN",
+    "left":     "K_LEFT",
+    "right":    "K_RIGHT",
+    "confirm":  "K_RETURN",
+    "back":     "K_BACKSPACE",
+    "new_user": "K_n",
+    "quit":     "K_ESCAPE"
   },
   "emulationstation": {
     "binary": "emulationstation",

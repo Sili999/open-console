@@ -28,16 +28,19 @@ class LEDManager:
 
     def __init__(self, n_pixels=16):
         self._n = n_pixels
+        self._strip = None
         if _HW_AVAILABLE:
-            spi = busio.SPI(board.SCK, MOSI=board.MOSI)
-            self._strip = _neopixel_spi.NeoPixel_SPI(
-                spi, n_pixels,
-                pixel_order=_neopixel_spi.GRB,
-                auto_write=False,
-                brightness=1.0,
-            )
-        else:
-            self._strip = None
+            try:
+                spi = busio.SPI(board.SCK, MOSI=board.MOSI)
+                self._strip = _neopixel_spi.NeoPixel_SPI(
+                    spi, n_pixels,
+                    pixel_order=_neopixel_spi.GRB,
+                    auto_write=False,
+                    brightness=1.0,
+                )
+            except Exception as exc:
+                print(f"[LEDManager] SPI init failed ({exc}) — LEDs disabled. "
+                      "Check dtparam=spi=on in /boot/firmware/config.txt.")
 
     def solid(self, r, g, b):
         if self._strip:

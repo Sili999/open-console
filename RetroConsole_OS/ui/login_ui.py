@@ -20,34 +20,36 @@ _SUCCESS = 'success'
 _FAIL    = 'fail'
 _ENROLL  = 'enroll'
 
-# Sensor event types posted to the queue
-_EV_FINGER   = 'finger_detected'
-_EV_MATCH    = 'scan_match'       # data: (slot_id, user_data)
-_EV_UNKNOWN  = 'scan_unknown'
-_EV_TIMEOUT  = 'scan_timeout'
-_EV_E_STEP   = 'enroll_step'     # data: int (next step number)
-_EV_E_READY  = 'enroll_ready'    # data: slot_id  (sensor done, enter name)
-_EV_E_ERR    = 'enroll_error'    # data: str (error message)
+# Sensor event types posted to the internal queue
+_EV_FINGER  = 'finger_detected'
+_EV_MATCH   = 'scan_match'     # data: (slot_id, user_data)
+_EV_UNKNOWN = 'scan_unknown'
+_EV_E_STEP  = 'enroll_step'   # data: int (next step number)
+_EV_E_READY = 'enroll_ready'  # data: slot_id
+_EV_E_ERR   = 'enroll_error'  # data: str
 
 
 class LoginUI:
     """
-    Pygame fullscreen login interface.
+    Pygame fullscreen login interface with 8-button navigation.
 
-    Lifecycle
-    ---------
-    1. Create instance (no Pygame calls yet).
-    2. Set `on_login_callback` to a callable(slot_id, user_data).
-    3. Call `run()` — blocks until quit (ESC or window close).
-    4. After EmulationStation exits, the callback should call `reset_to_idle()`.
+    Button → Pygame key mapping (configured in settings.json):
+      up       → K_UP        (char picker: next character)
+      down     → K_DOWN      (char picker: previous character)
+      left     → K_LEFT      (color picker: previous color)
+      right    → K_RIGHT     (color picker: next color)
+      confirm  → K_RETURN    (accept / advance)
+      back     → K_BACKSPACE (delete char / go back)
+      new_user → K_n         (start enrollment from IDLE/FAIL)
+      quit     → K_ESCAPE    (exit UI)
 
     Sensor threading model
     ----------------------
-    A background daemon thread (`_scan_worker`) polls the sensor while in IDLE
-    state using 1-second bursts, checking `_stop_scan` between each burst so
-    it can exit cleanly when the user navigates to ENROLL.  The enrollment
-    sensor steps run in a separate `_enroll_worker` thread which is started
-    only after the scan worker has exited.
+    _scan_worker  — background daemon; polls sensor while in IDLE state using
+                    1-second bursts, checks _stop_scan between each burst so
+                    it exits cleanly when the user navigates to ENROLL.
+    _enroll_worker — started only after scan_worker has exited; drives the
+                     3-step sensor enrollment (scan1 → removal → scan2).
     """
 
     def __init__(self, sensor=None, leds=None, config=None):
@@ -55,13 +57,17 @@ class LoginUI:
         self.leds   = leds
         self.on_login_callback = None
 
-        cfg       = config or {}
-        ui_cfg    = cfg.get('ui', {})
-        self._fullscreen   = ui_cfg.get('fullscreen', False)
-        res                = ui_cfg.get('resolution', [1280, 720])
-        self._res          = tuple(res)
-        self._scan_to      = ui_cfg.get('scan_timeout_sec', 5)
-        self._enroll_to    = ui_cfg.get('enroll_timeout_sec', 30)
+        cfg    = config or {}
+        ui_cfg = cfg.get('ui', {})
+        hw_cfg = cfg.get('hardware', {})
+
+        self._fullscreen = ui_cfg.get('fullscreen', False)
+        res              = ui_cfg.get('resolution', [800, 480])
+        self._res        = tuple(res)
+        self._scan_to    = ui_cfg.get('scan_timeout_sec', 5)
+        self._enroll_to  = ui_cfg.get('enroll_timeout_sec', 30)
+        self._btn_cfg    = hw_cfg.get('buttons', {})
+        self._keybind_cfg = cfg.get('keybindings', {})
 
         config_path = os.path.join(os.path.dirname(__file__),
                                    '..', 'config', 'user_map.json')
@@ -74,12 +80,14 @@ class LoginUI:
         self._clock        = None
         self._stop_scan    = threading.Event()
         self._scan_thread  = None
+        self._btn_mgr      = None
         self._pending_slot = 0
         self._login_data   = None
         self._login_ts     = 0
         self._fail_ts      = 0
+        self._scan_start_ts = 0
 
-    # ── Pygame setup ──────────────────────────────────────────────────────────
+    # ── Pygame + hardware setup ───────────────────────────────────────────────
 
     def _init_pygame(self):
         if not os.environ.get('DISPLAY'):
@@ -100,6 +108,22 @@ class LoginUI:
             _FAIL:    FailScreen(w, h),
             _ENROLL:  EnrollScreen(w, h),
         }
+
+    def _init_buttons(self):
+        """Build ButtonManager from settings and start it (after pygame.init)."""
+        try:
+            from scripts.button_manager import ButtonManager, _build_pin_map
+        except ImportError:
+            try:
+                import sys
+                sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+                from scripts.button_manager import ButtonManager, _build_pin_map
+            except ImportError:
+                return   # Not available — keyboard-only fallback
+
+        pin_map = _build_pin_map(self._btn_cfg, self._keybind_cfg) if self._btn_cfg else None
+        self._btn_mgr = ButtonManager(pin_map=pin_map)
+        self._btn_mgr.start()
 
     # ── State helpers ─────────────────────────────────────────────────────────
 
@@ -123,38 +147,37 @@ class LoginUI:
     # ── Sensor threads ────────────────────────────────────────────────────────
 
     def _scan_worker(self):
-        """
-        Runs in background while state == _IDLE.
-        Polls for finger in 1-second bursts; posts events on detection.
-        Exits when _stop_scan is set or state leaves IDLE.
-        """
+        """Poll for finger in 1 s bursts while in IDLE; post events on result."""
         if not self.sensor:
-            return   # No hardware — UI stays in IDLE indefinitely
+            return
 
         while self._state == _IDLE and not self._stop_scan.is_set():
             self.sensor.set_aura_led(1, 0x55, 7, 0)   # breathing white
 
-            # Short-burst poll so we check cancel flag frequently
             detected = self.sensor.wait_for_finger(timeout=1.0,
                                                     stop_event=self._stop_scan)
             if self._stop_scan.is_set() or self._state != _IDLE:
                 break
-
             if not detected:
-                continue   # Timeout — try again
+                continue
 
-            # Finger placed — post event and process immediately
+            # Finger placed — signal SCAN state, then process immediately
             self._q.put((_EV_FINGER, None))
 
-            slot_id = self.sensor.read_and_search()
+            try:
+                slot_id = self.sensor.read_and_search()
+            except Exception as exc:
+                print(f"[scan_worker] Sensor error during read/search: {exc}")
+                self._q.put((_EV_UNKNOWN, None))
+                break
 
             if slot_id == -1:
-                self.sensor.set_aura_led(2, 0x55, 1, 3)   # flashing red
+                self.sensor.set_aura_led(2, 0x55, 1, 3)
                 time.sleep(1.2)
                 self.sensor.led_off()
                 self._q.put((_EV_UNKNOWN, None))
             else:
-                self.sensor.set_aura_led(3, 0x00, 4, 0)   # solid green
+                self.sensor.set_aura_led(3, 0x00, 4, 0)
                 time.sleep(0.5)
                 self.sensor.led_off()
                 user_map = self._load_user_map()
@@ -164,7 +187,7 @@ class LoginUI:
                     'home':  f'/home/pi/users/{slot_id}',
                 })
                 self._q.put((_EV_MATCH, (slot_id, user_data)))
-            break   # Worker done — LoginUI restarts it when needed
+            break
 
     def _start_scan_worker(self):
         self._stop_scan.clear()
@@ -173,20 +196,14 @@ class LoginUI:
         self._scan_thread = t
 
     def _stop_scan_worker(self):
-        """Signal the scan worker to exit and wait for it (max 2 s)."""
         self._stop_scan.set()
         if self._scan_thread and self._scan_thread.is_alive():
             self._scan_thread.join(timeout=2.0)
 
     def _enroll_worker(self):
-        """
-        Runs the sensor-side of enrollment (steps 0–2).
-        Posts EV_E_STEP events to advance the EnrollScreen,
-        then EV_E_READY(slot_id) when the finger is stored.
-        Posts EV_E_ERR on failure.
-        """
+        """Run sensor-side enrollment (steps 0–2); post events for each stage."""
         if not self.sensor:
-            # Mock mode — simulate sensor steps
+            # Mock mode — simulate sensor steps with delays
             for step in [1, 2]:
                 time.sleep(1.5)
                 if self._state != _ENROLL:
@@ -195,16 +212,15 @@ class LoginUI:
             time.sleep(1.5)
             if self._state != _ENROLL:
                 return
-            user_map   = self._load_user_map()
-            mock_slot  = max((int(k) for k in user_map), default=0) + 1
+            user_map  = self._load_user_map()
+            mock_slot = max((int(k) for k in user_map), default=0) + 1
             self._q.put((_EV_E_READY, mock_slot))
             return
 
+        stop = self._stop_scan
         try:
-            stop = self._stop_scan   # reuse event (already set when entering enroll)
-
             # Step 0 → 1: first scan
-            self.sensor.set_aura_led(1, 0x55, 2, 0)   # breathing blue
+            self.sensor.set_aura_led(1, 0x55, 2, 0)
             if not self.sensor.wait_for_finger(self._enroll_to, stop):
                 raise TimeoutError("Timed out waiting for first scan.")
             if self._state != _ENROLL:
@@ -227,7 +243,7 @@ class LoginUI:
             self.sensor.enroll_convert_second()
             slot_id = self.sensor.enroll_create_and_store()
 
-            self.sensor.set_aura_led(2, 0x55, 4, 3)   # flash green
+            self.sensor.set_aura_led(2, 0x55, 4, 3)
             time.sleep(1.0)
             self.sensor.led_off()
 
@@ -237,12 +253,13 @@ class LoginUI:
             self._q.put((_EV_E_ERR, str(exc)))
 
     def _start_enroll_flow(self):
-        """Transition to ENROLL: stop the scan worker, then start enroll worker."""
+        """Stop scan worker then start enroll worker (non-blocking)."""
         self._screens[_ENROLL].reset()
         self._set_state(_ENROLL)
 
         def _deferred():
-            self._stop_scan_worker()   # wait for scan thread to exit
+            self._stop_scan_worker()
+            self._stop_scan.clear()   # must clear after join so enroll worker can use it
             if self._state == _ENROLL:
                 self._enroll_worker()
 
@@ -251,7 +268,7 @@ class LoginUI:
     # ── Event processing ──────────────────────────────────────────────────────
 
     def _process_events(self):
-        """Handle Pygame and sensor events. Returns False to quit."""
+        """Handle Pygame + sensor queue events. Returns False to quit."""
         enroll_scr = self._screens[_ENROLL]
 
         for event in pygame.event.get():
@@ -267,7 +284,6 @@ class LoginUI:
                     if enroll_scr.step >= 5:
                         self._finish_enrollment(enroll_scr)
 
-        # Drain sensor queue
         while True:
             try:
                 ev_type, ev_data = self._q.get_nowait()
@@ -280,6 +296,7 @@ class LoginUI:
     def _handle_sensor_event(self, ev_type, ev_data):
         if ev_type == _EV_FINGER and self._state == _IDLE:
             self._set_state(_SCAN)
+            self._scan_start_ts = pygame.time.get_ticks()
 
         elif ev_type == _EV_MATCH and self._state in (_IDLE, _SCAN):
             slot_id, user_data = ev_data
@@ -295,16 +312,12 @@ class LoginUI:
             self._set_state(_FAIL)
             self._fail_ts = pygame.time.get_ticks()
 
-        elif ev_type == _EV_TIMEOUT and self._state == _SCAN:
-            self._set_state(_IDLE)
-            self._start_scan_worker()
-
         elif ev_type == _EV_E_STEP and self._state == _ENROLL:
             self._screens[_ENROLL].step = ev_data
 
         elif ev_type == _EV_E_READY and self._state == _ENROLL:
             self._pending_slot = ev_data
-            self._screens[_ENROLL].step = 3   # move to name input
+            self._screens[_ENROLL].step = 3   # advance to name picker
 
         elif ev_type == _EV_E_ERR:
             self._set_state(_IDLE)
@@ -321,21 +334,27 @@ class LoginUI:
         self._save_user_map(user_map)
 
         try:
-            es_dir = os.path.join(home_dir, '.emulationstation')
-            os.makedirs(es_dir, exist_ok=True)
+            os.makedirs(os.path.join(home_dir, '.emulationstation'), exist_ok=True)
         except Exception:
             pass
 
         self._set_state(_IDLE)
         self._start_scan_worker()
 
-    # ── Auto-transition timers ────────────────────────────────────────────────
+    # ── Timers ────────────────────────────────────────────────────────────────
 
     def _check_timers(self):
         now = pygame.time.get_ticks()
+        if self._state == _SCAN:
+            # Safety net: if scan worker died without posting a result, bail to IDLE
+            limit_ms = (self._scan_to + 3) * 1000
+            if now - self._scan_start_ts >= limit_ms:
+                print("[login_ui] SCAN timeout — scan worker may have crashed; returning to IDLE.")
+                self._set_state(_IDLE)
+                self._start_scan_worker()
 
-        if self._state == _SUCCESS and self._login_data:
-            if now - self._login_ts >= 2000:   # 2 s display then launch ES
+        elif self._state == _SUCCESS and self._login_data:
+            if now - self._login_ts >= 2000:
                 slot_id, user_data = self._login_data
                 self._login_data = None
                 if self.on_login_callback:
@@ -344,22 +363,22 @@ class LoginUI:
                         args=(slot_id, user_data),
                         daemon=True,
                     ).start()
-
         elif self._state == _FAIL:
-            if now - self._fail_ts >= 3000:   # 3 s on fail screen then IDLE
+            if now - self._fail_ts >= 3000:
                 self._set_state(_IDLE)
                 self._start_scan_worker()
 
     # ── Public API ────────────────────────────────────────────────────────────
 
     def reset_to_idle(self):
-        """Called by on_login_callback after EmulationStation exits."""
+        """Call from on_login_callback after EmulationStation exits."""
         self._set_state(_IDLE)
         self._start_scan_worker()
 
     def run(self):
-        """Start Pygame, enter main loop. Blocks until quit."""
+        """Initialise Pygame, start hardware, enter main loop. Blocks until quit."""
         self._init_pygame()
+        self._init_buttons()
         self._start_scan_worker()
 
         try:
@@ -376,5 +395,7 @@ class LoginUI:
 
                 pygame.display.flip()
         finally:
-            self._stop_scan.set()   # signal any running thread
+            self._stop_scan.set()
+            if self._btn_mgr:
+                self._btn_mgr.stop()
             pygame.quit()
