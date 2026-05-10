@@ -3,7 +3,8 @@ import time
 import json
 import os
 import sys
-
+from pyfingerprint.pyfingerprint import FINGERPRINT_CHARBUFFER1
+from pyfingerprint.pyfingerprint import FINGERPRINT_CHARBUFFER2
 try:
     from pyfingerprint.pyfingerprint import PyFingerprint
 except ImportError:
@@ -69,7 +70,7 @@ def enroll_finger():
         if not _wait_for_finger(f, timeout=30):
             raise TimeoutError('No finger detected after 30 s (scan 1)')
 
-        f.convertImage(0x01)
+        f.convertImage(FINGERPRINT_CHARBUFFER1)
 
         print('Finger recognized! Waiting for removal...')
         set_aura_led(f, 2, 0x55, 2, 0)
@@ -90,7 +91,7 @@ def enroll_finger():
         if not _wait_for_finger(f, timeout=30):
             raise TimeoutError('No finger detected after 30 s (scan 2)')
 
-        f.convertImage(0x02)
+        f.convertImage(FINGERPRINT_CHARBUFFER2)
         
         print('Creating template...')
         if f.compareCharacteristics() == 0:
