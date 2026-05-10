@@ -362,6 +362,40 @@ class LoginUI:
         self._set_state(_IDLE)
         self._start_scan_worker()
 
+    # ── EmulationStation session ──────────────────────────────────────────────
+
+    def _launch_session(self, slot_id, user_data):
+        """
+        Release the KMS/DRM display, run EmulationStation, then reclaim it.
+        Called directly from the main loop so no other thread holds the display.
+        """
+        import sys as _sys
+
+        # Release KMS/DRM exclusive access before ES tries to open the display
+        pygame.display.quit()
+
+        try:
+            if self.on_login_callback:
+                self.on_login_callback(slot_id, user_data)
+        finally:
+            # Reclaim the display for the next login cycle
+            no_desktop = (not os.environ.get('DISPLAY') and
+                          not os.environ.get('WAYLAND_DISPLAY'))
+            if _sys.platform.startswith('linux') and no_desktop:
+                if os.path.exists('/dev/dri/card0'):
+                    os.environ['SDL_VIDEODRIVER'] = 'kmsdrm'
+                else:
+                    os.environ['SDL_VIDEODRIVER'] = 'fbcon'
+                    os.environ.setdefault('SDL_FBDEV', '/dev/fb0')
+            pygame.display.init()
+            flags = pygame.FULLSCREEN if self._fullscreen else 0
+            self._surface = pygame.display.set_mode(self._res, flags)
+            pygame.mouse.set_visible(False)
+            self._clock = pygame.time.Clock()
+
+        self._set_state(_IDLE)
+        self._start_scan_worker()
+
     # ── Timers ────────────────────────────────────────────────────────────────
 
     def _check_timers(self):
@@ -378,12 +412,7 @@ class LoginUI:
             if now - self._login_ts >= 2000:
                 slot_id, user_data = self._login_data
                 self._login_data = None
-                if self.on_login_callback:
-                    threading.Thread(
-                        target=self.on_login_callback,
-                        args=(slot_id, user_data),
-                        daemon=True,
-                    ).start()
+                self._launch_session(slot_id, user_data)
         elif self._state == _FAIL:
             if now - self._fail_ts >= 2000:
                 print("[login_ui] Unknown finger — auto-starting enrollment.")

@@ -86,7 +86,7 @@ def main():
             time.sleep(5)
 
         leds.off()
-        ui.reset_to_idle()
+        # LoginUI reclaims the display and resets to IDLE after this returns
 
     ui.on_login_callback = on_login
     ui.run()   # blocks until quit

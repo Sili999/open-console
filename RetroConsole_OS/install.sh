@@ -120,7 +120,7 @@ fi
 step "Configuring user permissions"
 TARGET_USER="${SUDO_USER:-pi}"
 
-for group in gpio spi i2c dialout video; do
+for group in gpio spi i2c dialout video input; do
     if getent group "$group" &>/dev/null; then
         usermod -aG "$group" "$TARGET_USER"
         ok "Added '$TARGET_USER' to group '$group'"
@@ -176,30 +176,56 @@ elif [[ $IMPORT_RC -eq 2 ]]; then
     warn "Some imports failed — hardware features for those modules will be disabled"
 fi
 
+# ── RetroPie autostart conflict check ────────────────────────────────────────
+step "Checking for RetroPie autostart conflict"
+
+RETROPIE_PROFILE="/etc/profile.d/10-retropie.sh"
+if [[ -f "$RETROPIE_PROFILE" ]] && grep -q "emulationstation" "$RETROPIE_PROFILE" 2>/dev/null; then
+    warn "RetroPie profile.d autostart detected: $RETROPIE_PROFILE"
+    warn "This will launch EmulationStation on TTY1 login, conflicting with RetroConsole OS."
+    warn "Disable it with: sudo raspi-config → System → Boot / Auto Login → Console (no autologin)"
+    warn "Or rename the profile: sudo mv $RETROPIE_PROFILE ${RETROPIE_PROFILE}.disabled"
+else
+    ok "No conflicting RetroPie autostart found"
+fi
+
 # ── Systemd autostart service ─────────────────────────────────────────────────
 step "Installing systemd autostart service"
+
+PYTHON3_BIN="$(command -v python3 || echo /usr/bin/python3)"
 
 SERVICE_FILE="/etc/systemd/system/retroconsole.service"
 cat > "$SERVICE_FILE" <<EOF
 [Unit]
 Description=RetroConsole OS Login UI
-After=multi-user.target
+After=multi-user.target systemd-udev-settle.service
+Wants=systemd-udev-settle.service
 
 [Service]
 Type=simple
 User=${TARGET_USER}
 WorkingDirectory=${SCRIPT_DIR}
-ExecStart=/usr/bin/python3 ${SCRIPT_DIR}/start.py
+ExecStart=${PYTHON3_BIN} ${SCRIPT_DIR}/start.py
 Restart=on-failure
 RestartSec=5
+TimeoutStopSec=10
+KillMode=mixed
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
-systemctl daemon-reload
-systemctl enable retroconsole.service
-ok "retroconsole.service enabled — will start automatically on next boot"
+if command -v systemctl &>/dev/null; then
+    systemctl daemon-reload
+    if systemctl enable retroconsole.service; then
+        ok "retroconsole.service enabled — will start automatically on next boot"
+    else
+        warn "Could not enable service automatically. Enable manually with:"
+        warn "  sudo systemctl enable retroconsole.service"
+    fi
+else
+    warn "systemctl not found — enable the service manually after installing systemd"
+fi
 
 # ── Summary ───────────────────────────────────────────────────────────────────
 echo ""
