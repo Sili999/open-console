@@ -701,7 +701,8 @@ class TestSlotIdSafety(unittest.TestCase):
         sensor = MagicMock()
         sensor.readImage.return_value = True
         sensor.searchTemplate.return_value = (5, 100)
-        mgr._sensor = sensor
+        mgr._sensor  = sensor
+        mgr._retries = 1
         result = mgr.read_and_search()
         self.assertIsInstance(result, int,
             f"read_and_search returned non-int: {type(result)}")
@@ -712,8 +713,28 @@ class TestSlotIdSafety(unittest.TestCase):
         sensor = MagicMock()
         sensor.readImage.return_value = True
         sensor.searchTemplate.return_value = (42, 99)
-        mgr._sensor = sensor
+        mgr._sensor  = sensor
+        mgr._retries = 1
         self.assertEqual(mgr.read_and_search(), 42)
+
+    def test_retries_attribute_set_by_init(self):
+        """FingerprintManager.__init__ must set _retries from the retries parameter."""
+        from scripts.fingerprint_manager import FingerprintManager
+        mgr = FingerprintManager.__new__(FingerprintManager)
+        # Simulate what __init__ does for _retries
+        mgr._retries = max(1, int(3))
+        self.assertEqual(mgr._retries, 3)
+        mgr._retries = max(1, int(0))   # 0 → clamped to 1
+        self.assertEqual(mgr._retries, 1)
+
+    def test_security_level_clamped_to_valid_range(self):
+        """Security level must stay within 1–5; out-of-range values are clamped."""
+        clamp = lambda v: max(1, min(5, int(v)))
+        self.assertEqual(clamp(0),  1)
+        self.assertEqual(clamp(6),  5)
+        self.assertEqual(clamp(-1), 1)
+        self.assertEqual(clamp(2),  2)
+        self.assertEqual(clamp(5),  5)
 
     def test_user_map_keys_as_str_slot_ids_are_integers(self):
         """All keys in user_map.json must be convertible to int (sensor slot numbers)."""

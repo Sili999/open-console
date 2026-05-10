@@ -296,6 +296,10 @@ class LoginUI:
                     return False
                 if self._state in (_IDLE, _FAIL) and event.key == pygame.K_n:
                     self._start_enroll_flow()
+                elif self._state == _FAIL and event.key == pygame.K_BACKSPACE:
+                    # Cancel the pending auto-enroll and return to idle scanning
+                    self._set_state(_IDLE)
+                    self._start_scan_worker()
                 elif self._state == _ENROLL:
                     enroll_scr.on_event(event)
                     if enroll_scr.step >= 5:
@@ -381,9 +385,9 @@ class LoginUI:
                         daemon=True,
                     ).start()
         elif self._state == _FAIL:
-            if now - self._fail_ts >= 3000:
-                self._set_state(_IDLE)
-                self._start_scan_worker()
+            if now - self._fail_ts >= 2000:
+                print("[login_ui] Unknown finger — auto-starting enrollment.")
+                self._start_enroll_flow()
 
     # ── Public API ────────────────────────────────────────────────────────────
 

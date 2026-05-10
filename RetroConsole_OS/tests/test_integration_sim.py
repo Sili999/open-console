@@ -122,11 +122,12 @@ class MockSensor:
 
 class TestFingerprintManager(unittest.TestCase):
 
-    def _make_manager(self):
+    def _make_manager(self, retries=2):
         from scripts.fingerprint_manager import FingerprintManager
         mock_hw = MockSensor()
         mgr = FingerprintManager.__new__(FingerprintManager)
-        mgr._sensor = mock_hw
+        mgr._sensor  = mock_hw
+        mgr._retries = retries
         return mgr, mock_hw
 
     def test_wait_for_finger_detects(self):
@@ -174,12 +175,36 @@ class TestFingerprintManager(unittest.TestCase):
         slot_id = mgr.read_and_search()
         self.assertEqual(slot_id, -1)
 
-    def test_read_and_search_sensor_error_propagates(self):
-        """Sensor comm error raises — caller (_scan_worker) must catch it."""
-        mgr, hw = self._make_manager()
+    def test_read_and_search_sensor_error_returns_unknown(self):
+        """Persistent sensor errors across all retries return -1 (treated as unknown finger)."""
+        mgr, hw = self._make_manager(retries=2)
         hw._bad_read = True
-        with self.assertRaises(Exception):
-            mgr.read_and_search()
+        result = mgr.read_and_search()
+        self.assertEqual(result, -1)
+
+    def test_retry_succeeds_on_second_scan(self):
+        """If first scan gives -1, a second image taken while finger is still present matches."""
+        mgr, hw = self._make_manager(retries=2)
+        # First readImage call (already done before read_and_search): finger present
+        # convertImage + searchTemplate first attempt → no match
+        # readImage second attempt → finger still there → match
+        call_count = [0]
+        orig_search = hw.searchTemplate
+        def patched_search():
+            call_count[0] += 1
+            return (-1, 0) if call_count[0] == 1 else (7, 95)
+        hw.searchTemplate = patched_search
+        hw._finger = True
+        result = mgr.read_and_search()
+        self.assertEqual(result, 7)
+        self.assertEqual(call_count[0], 2)
+
+    def test_retry_exhausted_returns_minus_one(self):
+        """If all retry attempts give no match, read_and_search returns -1."""
+        mgr, hw = self._make_manager(retries=3)
+        hw._finger = False   # every readImage call returns False (no finger)
+        result = mgr.read_and_search()
+        self.assertEqual(result, -1)
 
     def test_wait_for_removal_exits_when_finger_gone(self):
         mgr, hw = self._make_manager()
@@ -403,17 +428,38 @@ class TestLoginUIStateMachine(unittest.TestCase):
         self._post_event(ui, _EV_MATCH, (2, user_data))
         self.assertEqual(ui._state, _SUCCESS)
 
-    def test_fail_state_resets_to_idle_after_timer(self):
-        from ui.login_ui import _EV_UNKNOWN, _IDLE
+    def test_fail_state_auto_enrolls_after_timer(self):
+        """Unknown finger: after 2 s in FAIL state the system auto-starts enrollment."""
+        from ui.login_ui import _EV_UNKNOWN, _ENROLL
         ui = _make_login_ui()
         self._post_event(ui, _EV_UNKNOWN, None)
 
-        # Simulate 3001 ms passing
         ui._fail_ts = 0
-        _pg.time.get_ticks.return_value = 3001
-        ui._start_scan_worker = MagicMock()
+        _pg.time.get_ticks.return_value = 2001
+        ui._start_enroll_flow = MagicMock()
         ui._check_timers()
+        ui._start_enroll_flow.assert_called_once()
+
+    def test_fail_back_key_cancels_to_idle(self):
+        """Pressing BACK during the FAIL window cancels auto-enroll and returns to IDLE."""
+        from ui.login_ui import _EV_UNKNOWN, _IDLE
+        import types
+        ui = _make_login_ui()
+        self._post_event(ui, _EV_UNKNOWN, None)
+        ui._start_scan_worker = MagicMock()
+
+        ev = types.SimpleNamespace(
+            type=_pg.KEYDOWN, key=_pg.K_BACKSPACE, unicode='')
+        # _pg.event.get is a plain lambda, not a MagicMock — replace temporarily
+        old_get = _pg.event.get
+        _pg.event.get = lambda: [ev]
+        try:
+            ui._process_events()
+        finally:
+            _pg.event.get = old_get
+
         self.assertEqual(ui._state, _IDLE)
+        ui._start_scan_worker.assert_called_once()
 
     def test_success_fires_callback_after_delay(self):
         from ui.login_ui import _EV_MATCH

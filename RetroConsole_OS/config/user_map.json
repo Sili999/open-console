@@ -52,5 +52,14 @@
             255
         ],
         "home": "C:\\home\\mainuser\\users/6"
+    },
+    "7": {
+        "name": "SILAS",
+        "color": [
+            255,
+            200,
+            0
+        ],
+        "home": "C:\\home\\mainuser\\users/7"
     }
 }
