@@ -157,7 +157,7 @@ These pin assignments can be changed in `config/settings.json` without touching 
 If RetroPie is not yet installed, follow these steps. If it is already running, skip to Section 5.
 
 1. Download **Raspberry Pi OS (64-bit, Lite)** from the Raspberry Pi website.
-2. Flash it to your SD card using **Raspberry Pi Imager**. Enable SSH and set your username to `pi` in the imager's advanced options.
+2. Flash it to your SD card using **Raspberry Pi Imager**. Enable SSH and set your username to `mainuser` in the imager's advanced options.
 3. Insert the SD card, connect the display, keyboard, and power. Let it boot fully.
 4. Run the RetroPie installer:
 
@@ -185,7 +185,7 @@ cd open-console/RetroConsole_OS
 
 This puts all the code at:
 ```
-/home/pi/open-console/RetroConsole_OS/
+/home/mainuser/open-console/RetroConsole_OS/
 ```
 
 ---
@@ -206,7 +206,7 @@ It will work through these steps automatically:
 | Python packages | Installs pygame, RPi.GPIO, adafruit-blinka, adafruit-circuitpython-neopixel-spi, pyfingerprint |
 | SPI | Adds `dtparam=spi=on` to `/boot/firmware/config.txt` so the LED strip works |
 | UART | Adds `dtoverlay=disable-bt` to free UART0 for the fingerprint sensor |
-| Permissions | Adds the `pi` user to groups: `gpio`, `spi`, `dialout`, `video` |
+| Permissions | Adds the `mainuser` user to groups: `gpio`, `spi`, `dialout`, `video` |
 | Config | Creates `config/user_map.json` if it does not exist |
 | Verification | Imports every library and reports success or failure |
 
@@ -228,7 +228,7 @@ Wait for the Pi to come back up before continuing.
 [OK]    System packages installed
 
 ▶ Installing Python packages
-  pygame ... [OK]    pygame
+  pygame ... [OK]    pygamehe 
   RPi.GPIO ... [OK]    RPi.GPIO
   adafruit-blinka ... [OK]    adafruit-blinka
   adafruit-circuitpython-neopixel-spi ... [OK]    adafruit-circuitpython-neopixel-spi
@@ -240,7 +240,7 @@ Wait for the Pi to come back up before continuing.
 [OK]    Hardware UART enabled
 
 ▶ Configuring user permissions
-[OK]    Added 'pi' to group 'gpio'
+[OK]    Added 'mainuser' to group 'gpio'
 ...
 
 ▶ Verifying Python imports
@@ -300,7 +300,7 @@ All settings live in `config/settings.json`. You never need to touch the Python 
   },
   "emulationstation": {
     "binary": "emulationstation",
-    "users_base_dir": "/home/pi/users"
+    "users_base_dir": "/home/mainuser/users"
   }
 }
 ```
@@ -397,7 +397,7 @@ The Pi never sees raw fingerprint data — only a slot number (e.g., `3`) is ret
   "1": {
     "name": "Alice",
     "color": [0, 200, 255],
-    "home": "/home/pi/users/1"
+    "home": "/home/mainuser/users/1"
   }
 }
 ```
@@ -421,9 +421,9 @@ After=multi-user.target graphical.target
 
 [Service]
 Type=simple
-User=pi
-WorkingDirectory=/home/pi/open-console/RetroConsole_OS
-ExecStart=/usr/bin/python3 /home/pi/open-console/RetroConsole_OS/start.py
+User=mainuser
+WorkingDirectory=/home/mainuser/open-console/RetroConsole_OS
+ExecStart=/usr/bin/python3 /home/mainuser/open-console/RetroConsole_OS/start.py
 Restart=on-failure
 RestartSec=5
 Environment=DISPLAY=:0
@@ -471,7 +471,7 @@ To enrol a new user:
 2. Press the **NEW USER** button from the idle or fail screen.
 3. Follow the same enrolment steps from Section 9.
 
-Each new user automatically gets the next available slot number and their own home folder at `/home/pi/users/<slot_number>/.emulationstation/`.
+Each new user automatically gets the next available slot number and their own home folder at `/home/mainuser/users/<slot_number>/.emulationstation/`.
 
 To **remove a user**, delete their entry from `config/user_map.json`. Their fingerprint template remains on the sensor chip. To also remove the template from the sensor, re-run enrolment from scratch with the sensor management tools (this requires direct sensor access via `scripts/enroll.py`).
 
@@ -502,7 +502,7 @@ This section explains what happens under the hood, so you can understand the sys
            │
            └─ on_login_callback (daemon thread)
                   Lights LEDs in user colour
-                  Launches: emulationstation --home /home/pi/users/<slot>
+                  Launches: emulationstation --home /home/mainuser/users/<slot>
                   Waits for EmulationStation to exit
                   Turns LEDs off
                   Returns login screen to IDLE
@@ -574,9 +574,9 @@ ls /dev/spidev*
 
 1. Check that `dtoverlay=disable-bt` is in `/boot/firmware/config.txt` and you have rebooted.
 2. Check wiring: TXD (sensor) → GPIO 15 (Pi RX), RXD (sensor) → GPIO 14 (Pi TX).
-3. Check that the `pi` user is in the `dialout` group:
+3. Check that the `mainuser` user is in the `dialout` group:
    ```bash
-   groups pi
+   groups mainuser
    # Should include: dialout
    ```
 4. Verify the serial port is free:
@@ -592,9 +592,9 @@ ls /dev/spidev*
 
 ### Buttons do not respond
 
-1. Check that the `pi` user is in the `gpio` group:
+1. Check that the `mainuser` user is in the `gpio` group:
    ```bash
-   groups pi
+   groups mainuser
    # Should include: gpio
    ```
 2. Check that the button BCM pin numbers in `settings.json` match your physical wiring.
@@ -613,11 +613,11 @@ ls /dev/spidev*
    ```
 2. Check that the `home` path in `user_map.json` exists:
    ```bash
-   ls /home/pi/users/
+   ls /home/mainuser/users/
    ```
 3. Run EmulationStation manually to see its error output:
    ```bash
-   emulationstation --home /home/pi/users/1
+   emulationstation --home /home/mainuser/users/1
    ```
 
 ### Running the automated test suite
