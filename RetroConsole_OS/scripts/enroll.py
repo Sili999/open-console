@@ -120,7 +120,16 @@ def main():
         print("Invalid color format. Defaulting to [255, 255, 255] (white).")
         color = [255, 255, 255]
     
-    home_dir = f"/home/pi/users/{slot_id}"
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    settings_path = os.path.join(script_dir, '..', 'config', 'settings.json')
+    try:
+        import json as _json
+        with open(settings_path) as _f:
+            _s = _json.load(_f)
+        users_base = _s.get('emulationstation', {}).get('users_base_dir', '/home/pi/users')
+    except Exception:
+        users_base = '/home/pi/users'
+    home_dir = f"{users_base}/{slot_id}"
     
     # 3. Update user_map.json
     try:

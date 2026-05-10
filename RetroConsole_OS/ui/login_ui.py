@@ -68,6 +68,8 @@ class LoginUI:
         self._enroll_to  = ui_cfg.get('enroll_timeout_sec', 30)
         self._btn_cfg    = hw_cfg.get('buttons', {})
         self._keybind_cfg = cfg.get('keybindings', {})
+        es_cfg = cfg.get('emulationstation', {})
+        self._users_base  = es_cfg.get('users_base_dir', '/home/pi/users')
 
         config_path = os.path.join(os.path.dirname(__file__),
                                    '..', 'config', 'user_map.json')
@@ -184,7 +186,7 @@ class LoginUI:
                 user_data = user_map.get(str(slot_id), {
                     'name':  f'User {slot_id}',
                     'color': [0, 245, 255],
-                    'home':  f'/home/pi/users/{slot_id}',
+                    'home':  f'{self._users_base}/{slot_id}',
                 })
                 self._q.put((_EV_MATCH, (slot_id, user_data)))
             break
@@ -327,7 +329,7 @@ class LoginUI:
         name     = enroll_scr.get_name()
         color    = list(enroll_scr.get_color())
         slot_id  = self._pending_slot
-        home_dir = f'/home/pi/users/{slot_id}'
+        home_dir = f'{self._users_base}/{slot_id}'
 
         user_map = self._load_user_map()
         user_map[str(slot_id)] = {'name': name, 'color': color, 'home': home_dir}

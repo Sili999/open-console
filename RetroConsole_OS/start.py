@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+ #!/usr/bin/env python3
 """
 RetroConsole OS — entry point.
 
@@ -65,8 +65,9 @@ def main():
         leds.solid(*color)
 
         es_cfg = cfg.get('emulationstation', {})
-        es_bin = es_cfg.get('binary', 'emulationstation')
-        home   = user_data.get('home', f'/home/pi/users/{slot_id}')
+        es_bin       = es_cfg.get('binary', 'emulationstation')
+        users_base   = es_cfg.get('users_base_dir', '/home/pi/users')
+        home         = user_data.get('home', f'{users_base}/{slot_id}')
 
         if shutil.which(es_bin):
             print(f"[start] Launching {es_bin} --home {home}")
