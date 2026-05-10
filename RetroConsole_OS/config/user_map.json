@@ -1,1 +1,47 @@
-{}
+{
+    "1": {
+        "name": "SILAS",
+        "color": [
+            0,
+            102,
+            255
+        ],
+        "home": "/home/pi/users/1"
+    },
+    "2": {
+        "name": "LOL",
+        "color": [
+            0,
+            245,
+            255
+        ],
+        "home": "/home/pi/users/2"
+    },
+    "3": {
+        "name": "SILAS",
+        "color": [
+            0,
+            102,
+            255
+        ],
+        "home": "/home/pi/users/3"
+    },
+    "4": {
+        "name": "67",
+        "color": [
+            255,
+            0,
+            110
+        ],
+        "home": "/home/pi/users/4"
+    },
+    "5": {
+        "name": "PEETHAAAA",
+        "color": [
+            0,
+            215,
+            95
+        ],
+        "home": "/home/pi/users/5"
+    }
+}
