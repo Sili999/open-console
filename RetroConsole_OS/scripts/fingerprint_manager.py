@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Unified R503 fingerprint sensor manager for RetroConsole OS."""
 import time
-import threading
 
 try:
     from pyfingerprint.pyfingerprint import PyFingerprint
@@ -24,14 +23,22 @@ class FingerprintManager:
     """
 
     def __init__(self, port='/dev/ttyAMA0', baud=57600,
-                 address=0xFFFFFFFF, password=0x00000000):
+                 address=0xFFFFFFFF, password=0x00000000,
+                 security_level=2, retries=2):
         if not _AVAILABLE:
             raise ImportError(
                 "pyfingerprint not installed — run: sudo pip3 install pyfingerprint"
             )
+        self._retries = max(1, int(retries))
         self._sensor = PyFingerprint(port, baud, address, password)
         if not self._sensor.verifyPassword():
             raise ValueError("Fingerprint sensor password verification failed.")
+        # Security level 1–5 (1=most lenient, 5=strictest; default 3).
+        # Level 2 tolerates slight angle/pressure differences without compromising security.
+        try:
+            self._sensor.setSystemParameter(5, max(1, min(5, int(security_level))))
+        except Exception:
+            pass  # non-fatal if sensor doesn't support the command
 
     # ── LED control ──────────────────────────────────────────────────────────
 
@@ -102,10 +109,26 @@ class FingerprintManager:
         Convert the current image and search templates.
         Must be called immediately after readImage() returned True.
 
+        Retries up to self._retries times by capturing a fresh image
+        while the finger is still on the sensor, so slight angle or
+        pressure differences on the first capture don't cause a failure.
+
         Returns slot_id >= 0 on match, -1 on unknown finger.
         """
-        self._sensor.convertImage(0x01)
-        return self._sensor.searchTemplate()[0]
+        for attempt in range(self._retries):
+            try:
+                self._sensor.convertImage(0x01)
+                position, _ = self._sensor.searchTemplate()
+                if position >= 0:
+                    return position
+            except Exception:
+                pass
+            if attempt < self._retries - 1:
+                # Take a fresh image while the finger may still be present
+                if not self._sensor.readImage():
+                    break  # finger lifted — no point retrying
+                time.sleep(0.05)
+        return -1
 
     # ── Enrollment helpers ────────────────────────────────────────────────────
 

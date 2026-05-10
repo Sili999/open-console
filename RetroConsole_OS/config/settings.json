@@ -2,6 +2,8 @@
   "hardware": {
     "fingerprint_port": "/dev/ttyAMA0",
     "fingerprint_baud": 57600,
+    "fingerprint_security_level": 2,
+    "fingerprint_retries": 2,
     "ws2812b_pixel_count": 16,
     "buttons": {
       "up": 17,

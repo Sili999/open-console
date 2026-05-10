@@ -176,6 +176,31 @@ elif [[ $IMPORT_RC -eq 2 ]]; then
     warn "Some imports failed — hardware features for those modules will be disabled"
 fi
 
+# ── Systemd autostart service ─────────────────────────────────────────────────
+step "Installing systemd autostart service"
+
+SERVICE_FILE="/etc/systemd/system/retroconsole.service"
+cat > "$SERVICE_FILE" <<EOF
+[Unit]
+Description=RetroConsole OS Login UI
+After=multi-user.target
+
+[Service]
+Type=simple
+User=${TARGET_USER}
+WorkingDirectory=${SCRIPT_DIR}
+ExecStart=/usr/bin/python3 ${SCRIPT_DIR}/start.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable retroconsole.service
+ok "retroconsole.service enabled — will start automatically on next boot"
+
 # ── Summary ───────────────────────────────────────────────────────────────────
 echo ""
 echo -e "${GREEN}╔══════════════════════════════════════════╗${NC}"

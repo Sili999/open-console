@@ -51,6 +51,8 @@ def main():
             sensor = FingerprintManager(
                 port=hw.get('fingerprint_port', '/dev/ttyAMA0'),
                 baud=hw.get('fingerprint_baud', 57600),
+                security_level=hw.get('fingerprint_security_level', 2),
+                retries=hw.get('fingerprint_retries', 2),
             )
             print("[start] Fingerprint sensor initialised.")
         except Exception as exc:
