@@ -35,7 +35,6 @@ apt-get install -y --no-install-recommends \
     libsdl2-image-dev    \
     libsdl2-mixer-dev    \
     libsdl2-ttf-dev      \
-    libatlas-base-dev    \
     libopenjp2-7         \
     git
 ok "System packages installed"

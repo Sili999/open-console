@@ -1,4 +1,4 @@
-"""Pygame-based login UI with fingerprint state machine for RetroConsole OS."""
+
 import os
 import json
 import threading
@@ -93,13 +93,14 @@ class LoginUI:
     # ── Pygame + hardware setup ───────────────────────────────────────────────
 
     def _init_pygame(self):
-        if not os.environ.get('DISPLAY'):
+        import sys as _sys
+        if _sys.platform.startswith('linux') and not os.environ.get('DISPLAY'):
             os.environ.setdefault('SDL_VIDEODRIVER', 'fbcon')
             os.environ.setdefault('SDL_FBDEV',       '/dev/fb0')
         pygame.init()
-        pygame.mouse.set_visible(False)
         flags = pygame.FULLSCREEN if self._fullscreen else 0
         self._surface = pygame.display.set_mode(self._res, flags)
+        pygame.mouse.set_visible(False)
         pygame.display.set_caption("RetroConsole Login")
         self._clock = pygame.time.Clock()
 

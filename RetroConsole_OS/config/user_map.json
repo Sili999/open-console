@@ -43,5 +43,14 @@
             95
         ],
         "home": "/home/pi/users/5"
+    },
+    "6": {
+        "name": "SILAS",
+        "color": [
+            0,
+            245,
+            255
+        ],
+        "home": "C:\\home\\mainuser\\users/6"
     }
 }
