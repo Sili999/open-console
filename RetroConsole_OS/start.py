@@ -37,10 +37,10 @@ def main():
     args = parser.parse_args()
 
     cfg = _load_settings()
-    hw  = cfg['hardware']
+    hw  = cfg.get('hardware', {})
 
     # ── LEDs ─────────────────────────────────────────────────────────────────
-    leds = LEDManager(n_pixels=hw['ws2812b_pixel_count'])
+    leds = LEDManager(n_pixels=hw.get('ws2812b_pixel_count', 16))
     leds.solid(0, 50, 70)   # dim cyan = system ready
 
     # ── Fingerprint sensor ────────────────────────────────────────────────────
@@ -49,8 +49,8 @@ def main():
         try:
             from scripts.fingerprint_manager import FingerprintManager
             sensor = FingerprintManager(
-                port=hw['fingerprint_port'],
-                baud=hw['fingerprint_baud'],
+                port=hw.get('fingerprint_port', '/dev/ttyAMA0'),
+                baud=hw.get('fingerprint_baud', 57600),
             )
             print("[start] Fingerprint sensor initialised.")
         except Exception as exc:
@@ -65,9 +65,15 @@ def main():
         leds.solid(*color)
 
         es_cfg = cfg.get('emulationstation', {})
-        es_bin       = es_cfg.get('binary', 'emulationstation')
-        users_base   = es_cfg.get('users_base_dir', '/home/pi/users')
-        home         = user_data.get('home', f'{users_base}/{slot_id}')
+        es_bin     = es_cfg.get('binary', 'emulationstation')
+        users_base = os.path.normpath(os.path.abspath(
+            es_cfg.get('users_base_dir', '/home/pi/users')
+        ))
+        raw_home = user_data.get('home', f'{users_base}/{slot_id}')
+        home     = os.path.normpath(os.path.abspath(raw_home))
+        if not home.startswith(users_base + os.sep) and home != users_base:
+            print(f"[start] Blocked: home path '{home}' is outside users_base '{users_base}'")
+            return
 
         if shutil.which(es_bin):
             print(f"[start] Launching {es_bin} --home {home}")

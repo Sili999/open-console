@@ -69,7 +69,8 @@ class LoginUI:
         self._btn_cfg    = hw_cfg.get('buttons', {})
         self._keybind_cfg = cfg.get('keybindings', {})
         es_cfg = cfg.get('emulationstation', {})
-        self._users_base  = es_cfg.get('users_base_dir', '/home/pi/users')
+        _raw_base = es_cfg.get('users_base_dir', '/home/pi/users')
+        self._users_base = os.path.normpath(os.path.abspath(_raw_base))
 
         config_path = os.path.join(os.path.dirname(__file__),
                                    '..', 'config', 'user_map.json')
@@ -138,13 +139,19 @@ class LoginUI:
     def _load_user_map(self):
         try:
             with open(self._user_map_path) as f:
-                return json.load(f)
+                data = json.load(f)
+            return data if isinstance(data, dict) else {}
         except (FileNotFoundError, json.JSONDecodeError):
             return {}
 
     def _save_user_map(self, user_map):
-        with open(self._user_map_path, 'w') as f:
-            json.dump(user_map, f, indent=4)
+        import tempfile
+        dir_ = os.path.dirname(self._user_map_path)
+        with tempfile.NamedTemporaryFile('w', dir=dir_, delete=False,
+                                         suffix='.tmp') as tmp:
+            json.dump(user_map, tmp, indent=4)
+            tmp_path = tmp.name
+        os.replace(tmp_path, self._user_map_path)   # atomic on all major OSes
 
     # ── Sensor threads ────────────────────────────────────────────────────────
 

@@ -37,9 +37,23 @@ def set_aura_led(f, control, speed, color, count):
     except Exception as e:
         print(f"Warning: Failed to set Aura LED ({e})")
 
-def enroll_finger():
+def _load_hw_settings():
+    """Read fingerprint port/baud from settings.json with safe fallbacks."""
+    settings_path = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                                 '..', 'config', 'settings.json')
     try:
-        f = PyFingerprint('/dev/ttyAMA0', 57600, 0xFFFFFFFF, 0x00000000)
+        with open(settings_path) as f:
+            s = json.load(f)
+        hw = s.get('hardware', {})
+        return hw.get('fingerprint_port', '/dev/ttyAMA0'), hw.get('fingerprint_baud', 57600)
+    except Exception:
+        return '/dev/ttyAMA0', 57600   # safe default — matches settings.json
+
+
+def enroll_finger():
+    port, baud = _load_hw_settings()
+    try:
+        f = PyFingerprint(port, baud, 0xFFFFFFFF, 0x00000000)
         
         if not f.verifyPassword():
             raise ValueError('Fingerprint sensor password verification failed!')
@@ -152,13 +166,13 @@ def main():
     es_dir = os.path.join(home_dir, ".emulationstation")
     os.makedirs(es_dir, exist_ok=True)
     
-    # Try to set ownership to 'pi' if running as root
+    # Try to set ownership to the invoking user if running as root
     try:
         import pwd
-        pi_uid = pwd.getpwnam('pi').pw_uid
-        pi_gid = pwd.getpwnam('pi').pw_gid
-        os.chown(home_dir, pi_uid, pi_gid)
-        os.chown(es_dir, pi_uid, pi_gid)
+        target_user = os.environ.get('SUDO_USER') or os.environ.get('USER') or 'pi'
+        pw = pwd.getpwnam(target_user)
+        os.chown(home_dir, pw.pw_uid, pw.pw_gid)
+        os.chown(es_dir, pw.pw_uid, pw.pw_gid)
     except BaseException as e:
         print(f"Warning: Could not set owner to 'pi' ({e}). You may need to chown manually.")
         
