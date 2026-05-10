@@ -94,9 +94,16 @@ class LoginUI:
 
     def _init_pygame(self):
         import sys as _sys
-        if _sys.platform.startswith('linux') and not os.environ.get('DISPLAY'):
-            os.environ.setdefault('SDL_VIDEODRIVER', 'fbcon')
-            os.environ.setdefault('SDL_FBDEV',       '/dev/fb0')
+        no_desktop = (not os.environ.get('DISPLAY') and
+                      not os.environ.get('WAYLAND_DISPLAY'))
+        if _sys.platform.startswith('linux') and no_desktop:
+            if os.path.exists('/dev/dri/card0'):
+                # Pi OS Bookworm+ — KMS/DRM replaces the old fbcon framebuffer
+                os.environ.setdefault('SDL_VIDEODRIVER', 'kmsdrm')
+            else:
+                # Legacy Pi OS — use the old framebuffer driver
+                os.environ.setdefault('SDL_VIDEODRIVER', 'fbcon')
+                os.environ.setdefault('SDL_FBDEV',       '/dev/fb0')
         pygame.init()
         flags = pygame.FULLSCREEN if self._fullscreen else 0
         self._surface = pygame.display.set_mode(self._res, flags)

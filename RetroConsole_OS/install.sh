@@ -105,6 +105,17 @@ else
     NEED_REBOOT=1
 fi
 
+# Remove the Linux serial console from UART0 — it blocks fingerprint sensor comms
+CMDLINE_TXT="/boot/firmware/cmdline.txt"
+[[ -f "$CMDLINE_TXT" ]] || CMDLINE_TXT="/boot/cmdline.txt"
+if [[ -f "$CMDLINE_TXT" ]] && grep -qE "console=(serial0|ttyAMA0),[0-9]+" "$CMDLINE_TXT"; then
+    sed -i 's/console=serial0,[0-9]\+ \?//g; s/console=ttyAMA0,[0-9]\+ \?//g' "$CMDLINE_TXT"
+    ok "Serial console removed from UART0 (fingerprint sensor now has exclusive access)"
+    NEED_REBOOT=1
+else
+    ok "Serial console already clear of UART0"
+fi
+
 # ── User permissions ──────────────────────────────────────────────────────────
 step "Configuring user permissions"
 TARGET_USER="${SUDO_USER:-pi}"
